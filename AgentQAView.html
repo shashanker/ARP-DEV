@@ -1,0 +1,435 @@
+<?!= include('IncludeScripts'); ?>
+<?!= include('AgentQAScripts'); ?>
+<?!= include('AgentQAStyles'); ?>
+<!--
+correctCompNameId used for Parent Company ID
+mccId used for Child Company ID
+agencyId used for Division Company ID :: spanAgencyName for Rework ::
+lowestCompId used for Division Company ID
+-->
+<html>
+<body class="bodyid" onload="hideToggle()">
+<div id="errorId">
+</div>
+<div id="fId">
+	<div id="tabs-2">
+		<div id="date" style="padding-left: 15cm; font-size: 14px;"><br><b>Date: </b><?= getDate(); ?></div>
+		<div id="tickets" style="padding-left: 15cm; font-size: 14px;"></div>
+		<div id="program" style="display: none;">
+			<input id="Program" name="status" type="text" value="Program:" style="font: bold; font-size: 14px; width: 100px; background-color: #DCDCDC;"
+				readonly /> <select id="ProgramSelection" style="width: 150px" name="ProgramSelection" onchange="programChanged(this.value)">
+				<option value="select">please select</option>
+			</select>
+            <span id="agentId"></span>
+		</div>
+		<br />
+		<div id="lead" />
+		<div id="formId" style="display: none;">
+			<table>
+				<tr id="tr_company_type">
+					<td></td>
+					<td class="labels"><input id="Company Type" name="status" value="Company Type:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="comTypeId" name="comTypeId" type="text" value=" " readonly /></td>
+				</tr>
+				<tr id="tr_pod">
+					<td></td>
+					<td class="labels"><input value="Pod:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="podId" name="podId" type="text" value=" " readonly /></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td class="labels"><input value="CID:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="cId" name="cId" type="text" value=" " readonly /></td>
+				</tr>
+				<tr id="tr_proposed_company_name">
+					<td></td>
+					<td class="labels"><input class="input" value="Proposed Company Name:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="propcompanyId" type="text" value=" " readonly /></td>
+				</tr>
+				<tr id="tr_opportunity_name">
+					<td></td>
+					<td class="labels"><input value="Opportunity Name:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="oppId" type="text" value=" " readonly /></td>
+				</tr>
+				<tr id="tr_website">
+					<td></td>
+					<td class="labels"><input value="Website:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="websiteId" type="text" value=" " readonly /></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td class="labels"><input value="Website from ICS:" class="input" readonly /></td>
+					<td></td>
+					<td><span id="desUrlId"></span><input id="websiteIcsId" type="text" value="" onchange="validateWeb(this.value);" /><input id="websiteIcsIds" type="hidden"/><span id="websId"></span></td>
+                    <td class="approve"><select id="websiteIcsIdAprove_1" name="websiteIcsIdStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="websiteIcsIdComments" rows="4" cols="40" name="Remarks"></textarea></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td class="labels"><input value="Current Company Rollup:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="rollUpId" type="text" value="" /><span id="rpId"></span></td>
+					<td class="approve"><select id="rollUpIdAprove_2" name="rollUpIdStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="rollUpIdComments" rows="4" cols="40" name="rollup"></textarea></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td class="labels"><input id="input_correct_company_id" value="Correct Company ID:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="corectCompId" type="text" value="" onkeypress="return IsNumeric(event);" onchange="validateID(this.value)" /><span id="corectCId"></span></td>
+					<td class="approve"><select id="correctCompIDAprove_4" name="correctCompIDStatus" class="select"
+						onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="correctCompIDComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_input_parent_on_npl">
+					<td></td>
+					<td class="labels"><input id="input_parent_on_npl" value="Parent on NPL?" class="input" readonly required /></td>
+					<td></td>
+					<td><select id="ParentSelection" name="ParentSelection" class="select" onchange="changeborder(this.id);">
+							<option value="select">please select</option>
+							<option value="[1] - Yes">[1] - Yes</option>
+							<option value="[2] - No">[2] - No</option>
+							<option value="[3] - Not Applicable">[3] - Not Applicable</option>
+					</select><span id="ParentSelectionId"></span>
+                    </td>
+					<td class="approve"><select id="parentNPLAprove_5" name="parentNPLStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select><span id="parentNPLAproveId"></span></td>
+					<td class="comments"><textarea id="parentNPLComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td class="labels"><input value="Parent Company:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="parentCompId" type="text" value="" onchange="validateName(this.value);" /><span id="parCompId"></span></td>
+					<td class="approve"><select id="parentCmpAprove_6" name="parentCmpStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="parentCmpComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_parent_company_exist_in_grm">
+					<td></td>
+					<td class="labels"><input value="Does Parent Company Exist in GRM?" class="input" readonly /></td>
+					<td></td>
+					<td>
+                      <input id="lowestParentCompIdEdited" type="text" value="" style="width: 225px;" />
+                      <input type="button" value="C" id="lowestParentCompIdCancelId" name="lowestParentCompIdCancelId" class="submit" style="font-size: 10px;" onclick="onClickCancel(this.id)" /> 
+                      <select id="lowestParentCompId" name="lowestParentCompId" class="select" onchange="changeborder(this.id);">
+							<option value="select">please select</option>
+                      </select><span id="lowParCompId"></span>
+                    </td>
+					<td class="approve"><select id="parentLowestAprove_7" name="parentLowestStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select><span id="parentLowestAproveId"></span></td>
+					<td class="comments"><textarea id="parentLowestComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_correct_company_name">
+					<td></td>
+					<td class="labels"><input value="Parent Company ID:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="correctCompNameId" type="text" value="0" onkeypress="return IsNumeric(event);" onchange="validateID(this.value)" /><span id="correctCNId"></span></td>
+					<td class="approve"><select id="correctCompNameAprove_3" name="correctCompNameStatus" class="select"
+						onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="correctCompNameComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_child_company_name">
+					<td></td>
+					<td class="labels"><input value="Child Company Name:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="childCompId" type="text" value="" onchange="validateName(this.value);" /><span id="cCompId"></span></td>
+					<td class="approve"><select id="childAprove_9" name="childStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select><span id="childCId"></span></td>
+					<td class="comments"><textarea id="childComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_child_company_exist_in_grm">
+					<td></td>
+					<td class="labels"><input value="Does Child Company Exist in GRM?" class="input" readonly /></td>
+					<td></td>
+					<td>
+                      <input id="lowestChildCompIdEdited" type="text" value="" style="width: 225px;" />
+                      <input type="button" value="C" id="lowestChildCompIdCancelId" name="lowestChildCompIdCancelId" class="submit" style="font-size: 10px;" onclick="onClickCancel(this.id)" /> 
+                      <select id="lowestChildCompId" name="lowestChildCompId" class="select" onchange="changeborder(this.id);">
+							<option value="select">please select</option>
+                      </select><span id="lowChildCId"></span></td>
+					<td class="approve"><select id="childLowestAprove_10" name="childLowestStatus" class="select" onchange="validateReject(this.id,this.value)">
+						<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="childLowestComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_mcc_id">
+					<td></td>
+					<td class="labels"><input value="Child Company ID:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="mccId" type="text" value="0" onkeypress="return IsNumeric(event);" onchange="validateID(this.value)" /><span id="mId"></span></td>
+					<td class="approve"><select id="mccAprove_18" name="mccStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="mccComments" rows="4" cols="40"></textarea><span id="mccCommentsId"></span></td>
+				</tr>
+				<tr id="tr_division_company_name">
+					<td></td>
+					<td class="labels"><input value="Division Company Name:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="divCompId" type="text" value="" onchange="validateName(this.value);" /><span id="divCId"></span></td>
+					<td class="approve"><select id="divisionAprove_11" name="divisionStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="divisionComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_division_company_exist_in_grm">
+					<td></td>
+					<td class="labels"><input value="Does Division Company Exist in GRM?" class="input" readonly /></td>
+					<td></td>
+					<td>
+                      <input id="lowestDivCompIdEdited" type="text" value="" style="width: 225px;" />
+                      <input type="button" value="C" id="lowestDivCompIdCancelId" name="lowestDivCompIdCancelId" class="submit" style="font-size: 10px;" onclick="onClickCancel(this.id)" /> 
+                      <select id="lowestDivCompId" name="lowestDivCompId" class="select" onchange="changeborder(this.id);">
+							<option value="select">please select</option>
+                      </select><span id="lowDivCId"></span></td>
+					<td class="approve"><select id="divisionLowestAprove_12" name="divisionLowestStatus" class="select"
+						onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="divisionLowestComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_agency_name">
+					<td></td>
+					<td class="labels"><input value="Division Company ID: " class="input" readonly /></td>
+					<td></td>
+					<td><input id="agencyId" type="text" value="0" onkeypress="return IsNumeric(event);" onchange="validateID(this.value)" /><span id="spanAgencyName"></span></td>
+					<td class="approve"><select id="agencyAprove_19" name="mccStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="agencyComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td class="labels"><input value="Lowest Company ID: " class="input" readonly /></td>
+					<td></td>
+					<td><input id="lowestCompId" type="text" value="0" onkeypress="return IsNumeric(event);" onchange="validateID(this.value)" /><span id="lowCompId"></span></td>
+					<td class="approve"><select id="lowestAprove_13" name="lowestStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="lowestComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_action_on_mapping">
+					<td></td>
+					<td class="labels"><input value="Action On Mapping:" class="input" readonly /></td>
+					<td></td>
+					<td><select id="actionId" name="actionId" class="select" onchange="changeborder(this.id);">
+							<option value="select">please select</option>
+							<option value="[1] - Child Linked to Parent">[1] - Child Linked to Parent</option>
+							<option value="[2] - Division Linked to Child">[2] - Division Linked to Child</option>
+							<option value="[3] - Child Linked to Parent Company and Division Linked to Child">[3] - Child Linked to Parent Company and Division
+								Linked to Child</option>
+							<option value="[4] - No Link">[4] - No Link</option>
+							<option value="[5] - Not Applicable">[5] - Not Applicable</option>
+					</select><span id="actId"></span></td>
+					<td class="approve"><select id="actionAprove_14" name="actionStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="actionComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td class="labels"><input value="Flag Reason:" class="input" readonly /></td>
+					<td></td>
+					<td class="second"><select class="select" id="flagSelection" name="flagSelection" onchange="changeborder(this.id);">
+							<option value="select">please select</option>
+							<option value="[01] - LCS Division Creation Escalation">[01] - LCS Division Creation Escalation</option>
+							<option value="[0] - LCS Pod Assignment">[0] - LCS Pod Assignment</option>
+							<option value="[1] - Rollup and Name Correct">[1] - Rollup and Name Correct</option>
+							<option value="[2] - Company Renamed">[2] - Company Renamed</option>
+							<option value="[3] - Company Created & CID Linked">[3] - Company Created & CID Linked</option>
+							<option value="[4] - Relinked to Existing Company">[4] - Relinked to Existing Company</option>
+							<option value="[5] - Relinked to Existing Company; Renamed to Follow CHIEF Guideline">[5] - Relinked to Existing Company; Renamed to
+								Follow CHIEF Guideline</option>
+							<option value="[6] - ICS Not Built Out">[6] - ICS Not Built Out</option>
+							<option value="[7] - Invalid CID; CID is MCC">[7] - Invalid CID; CID is MCC</option>
+							<option value="[8] - Invalid URL">[8] - Invalid URL</option>
+							<option value="[9] - Multiple Ads">[9] - Multiple Ads</option>
+					</select><span id="flagSelectionId"></span></td>
+					<td class="approve"><select id="FlagAprove_8" name="FlagStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="FlagComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_merge_exists">
+					<td></td>
+					<td class="labels"><input value="Merge Exists?" class="input" readonly /></td>
+					<td></td>
+					<td class="second"><select class="select" id="select_merge_exists" onchange="changeborder(this.id);">
+							<option value="select">please select</option>
+							<option value="Yes">Yes</option>
+							<option value="No">No</option>
+					</select><span id="select_merge_existsId"></span></td>
+					<td class="approve"><select id="mergeExistsAprove_22" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="mergeExistsComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_merge_status">
+					<td></td>
+					<td class="labels"><input value="Merge status?" class="input" readonly /></td>
+					<td></td>
+					<td class="second"><select class="select" id="select_merge_status" onchange="changeborder(this.id);">
+							<option value="select">please select</option>
+							<option value="Merge Now">Merge Now</option>
+							<option value="Merge Later">Merge Later</option>
+							<option value="Not Applicable">Not Applicable</option>
+					</select><span id="select_merge_statusId"></span></td>
+					<td class="approve"><select id="mergeStatusAprove_21" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="mergeStatusComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_merge_source_id">
+					<td></td>
+					<td class="labels"><input value="Merge Source ID:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="sourceId" type="text" value="" onkeypress="return IsNumeric(event);" onchange="validateID(this.value)" /><span id="sId"></span></td>
+					<td class="approve"><select id="sourceAprove_15" name="sourceStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="sourceComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_merge_destination_id">
+					<td></td>
+					<td class="labels"><input value="Merge Destination ID:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="destId" type="text" value="" onkeypress="return IsNumeric(event);" onchange="validateID(this.value)" /><span id="dId"></span></td>
+					<td class="approve"><select id="destinationtAprove_16" name="destinationStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="destinationComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_merge_flag">
+					<td></td>
+					<td class="labels"><input value="Merge Flag: " class="input" readonly /></td>
+					<td></td>
+					<td class="second"><select class="select" id="mergeSelection" name="mergeSelection" onchange="changeborder(this.id);">
+							<option value="select">please select</option>
+					</select><span id="mergeSelId"></span></td>
+					<td class="approve"><select id="mergeAprove_17" name="mergeStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="mergeComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr id="tr_require_escalation">
+					<td></td>
+					<td class="labels"><input value="Require Escalation?" class="input" readonly /></td>
+					<td></td>
+					<td class="second"><select class="select" id="escalationSelection" name="escalationSelection" onchange="changeborder(this.id);">
+							<option value="select">please select</option>
+							<option value="[1] - Yes">[1] - Yes</option>
+							<option value="[2] - No">[2] - No</option>
+							<option value="[3] - Not Applicable">[3] - Not Applicable</option>
+					</select></td>
+					<td class="approve"><select id="escalationAprove_20" name="escalationStatus" class="select" onchange="validateReject(this.id,this.value)">
+							<option value="select">Approve / Reject</option>
+							<option value="approved">Approve</option>
+							<option value="rejected">Reject</option>
+					</select></td>
+					<td class="comments"><textarea id="escalationComments" rows="4" cols="40"></textarea></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td class="labels"><input value="Clarification Required:" class="input" readonly /></td>
+					<td></td>
+					<td class="second"><select class="select" id="clarSelection" name="clarSelection" onchange="validateClarification(this.value,this.id)">
+							<option value="select">please select</option>
+							<option value="Yes">Yes</option>
+							<option value="NO">No</option>
+					</select><span id="clarSelId"></span></td>
+					<td class="second"><select class="select" id="clarComments" name="clarComments" required>
+							<option value="select">please select</option>
+							<option value="Yes">Yes</option>
+							<option value="NO">No</option>
+					</select><span id="clarCommentId"></span></td>
+					<td></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td class="labels"><input value="Remarks" class="input" readonly /></td>
+					<td></td>
+					<td><textarea id="remarksId" rows="10" cols="50"></textarea><span id="remId"></span></td>
+					<td><textarea id="remarksComments" rows="10" cols="50"></textarea></td>
+					<td></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td class="reject"><input value="Rejected Fields Count:" class="input" readonly /></td>
+					<td></td>
+					<td><input id="rejectId" type="text" value="" /></td>
+				</tr>
+				<br />
+			</table>
+		</div>
+		<table class="buttonTable" id="buttonId" style="display: none;">
+			<tr>
+				<td><input type="submit" value="Get Next" id="getnextId" class="submit" style="font-size: 14px;" onclick="getTicketData()" /></td>&nbsp;
+				<td><input type="submit" onclick="formValidation()" style="font-size: 14px;" value="Submit" id="submitId" class="submit" /></td>&nbsp;
+				<td><input id="pauseId" style="font-size: 14px;" class="submit" type="submit" value="Pause" onclick="paused()" /></td>
+			</tr>
+		</table>
+	</div>
+  </div>
+</body>
+</html>

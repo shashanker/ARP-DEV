@@ -1,0 +1,2593 @@
+
+<script type="text/javascript">
+    var releaseRowNumArr = [];
+    var distinctDynamicArr = [];
+	//to load visualization components
+	google.load("visualization", "1", {packages:["corechart"]});
+	google.load('visualization', '1', {packages:['table']});
+	google.load("visualization", "1.1", {packages:["bar"]});
+	google.load('visualization', '1', {packages:['corechart','bar']});
+    
+   	var date = new Date();
+	var yyyy = date.getFullYear();
+	var mm = date.getMonth() + 1;
+	var dd = date.getDate();
+    var toadyDate = yyyy + '-' + mm + '-' + dd;
+    		
+    var sdate = toadyDate;
+    var edate = toadyDate;
+    var ddate ='2015-05-01';
+    		
+    var AllProgramFlag = 0;
+    var AllPieFlag = 0;
+     
+	//to navigate in between the tabs of Lead Screens
+	$(function()
+	{
+		$("#tabs").tabs();
+	});
+	//init method called automatically
+	$(document).ready(function()
+	{
+		$('#failedTrixURLID').hide()
+		$('#showUploadMessage').hide();
+		$('#insertupdateMessage').hide();
+		$('#datepicker12')
+				.datepicker(
+						{dateFormat:"yy-mm-dd",altFormat:"DD, d MM, yy",showOn:"button",buttonImage:"https://jqueryui.com/resources/demos/datepicker/images/calendar.gif",buttonImageOnly:true});
+		$('#reassignUserId').hide();
+        $('#reassignSubmitId').hide();
+		$('#sheetURLID').hide();
+        $("#togId").val("Toggle Table");		
+        $("#togPieId").val("Toggle Table");
+	
+        //to  call automatically on onload 
+        google.script.run.withSuccessHandler(getProgramData).getDistinctProgramData();
+        google.script.run.withSuccessHandler(getLDAPData).getLDAP();
+        google.script.run.withSuccessHandler(drawBarChartDateRange).barchartDataDateRange(barChartProgram,"empty",sdate,edate);
+        google.script.run.withSuccessHandler(createProductivityTablefilter).parseXml(ddate,toadyDate);
+        google.script.run.withSuccessHandler(getDistinctPrograms).getDistinctProgramBatch();
+       
+	});
+
+	//to load programs from file
+	function loadProgramsFile()
+	{
+		var addPrograms = ADD_PROGS.split(",");
+		for (var i = 0; i < addPrograms.length; i++)
+		{
+			var option1 = document.createElement("option");
+			option1.text = addPrograms[i];
+			option1.value = addPrograms[i];
+			var select1 = document.getElementById("programsAllowedSelection");
+			select1.appendChild(option1);
+			//var option2 = document.createElement("option");
+			//option2.text = addPrograms[i];
+			//option2.value = addPrograms[i];
+			var select2 = document.getElementById("ProgramSelection");
+			var option2 = option1.cloneNode(true);
+			select2.appendChild(option2);
+		}
+	}
+
+	//auto load to get last batchid
+	function showSuccess_fromHistory(lastprogId)
+	{
+		lastProgramId = lastprogId;
+		dynamicProgramValue = ProgramSelection;
+		var query = new google.visualization.Query('http://spreadsheets.google.com/a/google.com/tq?key=' + inputSpreadsheetId + '&sheet=sfdc&headers=1&tq=select%20A%2C%20B%2C%20C%2C%20D%20%2C%20E%20%2CF');
+		query.send(handleResponseOfSheet)
+	}
+
+	//update user in lead screen
+	function showSuccessOfModifiedUser(returnUserValue)
+	{
+		var ret = returnUserValue.toString();
+		var returnUserList = ret.split("~");
+		if (typeof returnUserList[2] != "undefined")
+		{
+			document.getElementById("lastId").value = returnUserList[0];
+			document.getElementById("firstId").value = returnUserList[1];
+			document.getElementById("ldapId").value = returnUserList[2];
+			document.getElementById("roleSelection").value = returnUserList[3];
+			document.getElementById("userTypeIdSelection").value = returnUserList[4];
+			var showProg = returnUserList[5];
+			var splitshowProg = showProg.split(",");
+			var x1 = document.getElementById("programsAllowedSelection");
+			for (var rec = 0; rec < splitshowProg.length; rec++)
+			{
+				for (var i = 0; i < x1.options.length; i++)
+				{
+					if ((x1.options[i].value) == splitshowProg[rec])
+					{
+						x1.options[0].selected = false;
+						x1.options[i].selected = true;
+					}
+				}
+			}
+		}
+	}
+
+	//to get incremented batchId  to insert  trix 
+	function getDataFromSheet()
+	{
+		$('#failedTrixURLID').hide();
+		$('#showUploadMessage').hide();
+		inputSpreadsheetId = document.getElementById("trixPathId").value;
+		var ProgramSelection = document.getElementById("ProgramSelection").value;
+		if (ProgramSelection == 'select')
+		{
+			alert('Please select a program and submit');
+			return false;
+		}
+		var mystring = document.getElementById("trixPathId").value;
+		if (!mystring.match(/\S/))
+		{
+			alert('Please enter sheet ID');
+			return false;
+		}
+		google.script.run.withSuccessHandler(showSuccess_fromHistory).withFailureHandler(showError).getLastProgramIdex_fromhistory(ProgramSelection);
+	}
+    
+    function iqmsCategorize()
+    {
+      google.script.run.withSuccessHandler(onSuccessIQMSCategorize).withFailureHandler(onFailureIQMSCategorize).iqmsCategorize();
+    }
+    
+    function onSuccessIQMSCategorize()
+    {
+      alert("IQMS Categorization Completed!");
+    }
+    
+    function onFailureIQMSCategorize()
+    {
+      alert("IQMS Categorization - Run Again!");
+    }
+    
+	//to show message in upload screen
+	function showSuccessOfInsertSfdc(output)
+	{
+		//l0,fail,https://docs.google.com/a/google.com/spreadsheets/d/1OPbKT0ZHvjIwiRa80TzFCNYZ8R8izeDRc9BWQXyGX2A/edit,done
+		var loading = output[0] + 1;
+		var FailedSpreadsheetURL = output[2];
+		document.getElementById("uplodedTicketProgressId").innerHTML = "Loading...." + loading;
+		if (output[1] == SUCCESS_MESSAGE)
+		{
+			if (!$('#failedTrixURLID').is(':visible'))
+			{
+				$('#showUploadMessage').show();
+				document.getElementById("showUploadMessage").innerHTML = "SpreadSheet Data Uploaded Successfully....";
+				document.getElementById("uplodedTicketProgressId").innerHTML = "";
+			}
+
+		}
+		if (output[1] == FAILURE_MESSAGE)
+		{
+			document.getElementById("showUploadMessage").innerHTML = "";
+			document.getElementById("uplodedTicketProgressId").innerHTML = "";
+			var scrt_var = FailedSpreadsheetURL;
+			var a = document.getElementById('failedTrixURLID'); //or grab it by tagname etc
+			a.href = scrt_var;
+			$('#failedTrixURLID').show()
+		}
+		if (output[3] == "done")
+		{
+			document.getElementById("uplodedTicketProgressId").innerHTML = "";
+		}
+		document.getElementById("trixPathId").value = '';
+		document.getElementById("ProgramSelection").value = 'select';
+	}
+	//the trix file records to be inserted into database (SFDC)
+	function handleResponseOfSheet(response)
+	{
+		if (response.isError())
+		{
+			alert('Error in query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+			return;
+		}
+		data = response.getDataTable();
+		var rows = data.getNumberOfRows();
+		var cols = data.getNumberOfColumns();
+		var trixpathidd = document.getElementById("trixPathId").value;
+		var splitlastProgramId = lastProgramId.split("_");
+		var progname = splitlastProgramId[0];
+		var batchId = splitlastProgramId[1];
+		var countOfrowsInserted = 0;
+		var doneStatus = 'test';
+		var company_type, pod, cid, proposed_company_name, oppurt, website;
+		if (rows == 1)
+		{
+			for (var i = 0; i < rows; i++)
+			{
+				company_type = response.getDataTable().getValue(i, 0).toString();
+				//pod = response.getDataTable().getValue(i, 1).toString();
+                if(response.getDataTable().getValue(i, 1) == null)
+                {
+				   pod = 'none';
+                }
+                else
+                {
+                   pod = response.getDataTable().getValue(i, 1).toString();
+                }
+				cid = response.getDataTable().getValue(i, 2).toString();
+				proposed_company_name = response.getDataTable().getValue(i, 3).toString();
+				oppurt = response.getDataTable().getValue(i, 4).toString();
+				website = response.getDataTable().getValue(i, 5).toString();
+				google.script.run.withSuccessHandler(showSuccessOfInsertSfdc).withFailureHandler(showError).insertRecord_sfdc(lastProgramId,
+						company_type, pod, cid, proposed_company_name, oppurt, website, rows, trixpathidd, progname, batchId, countOfrowsInserted,
+						'onlyOne');
+			}
+		}
+		else
+		{
+			for (var i = 0; i < rows; i++)
+			{
+				company_type = response.getDataTable().getValue(i, 0).toString();
+				//pod = response.getDataTable().getValue(i, 1).toString();
+                if(response.getDataTable().getValue(i, 1) == null)
+                {
+				   pod = 'none';
+                }
+                else
+                {
+                   pod = response.getDataTable().getValue(i, 1).toString();
+                }
+				cid = response.getDataTable().getValue(i, 2).toString();
+				proposed_company_name = response.getDataTable().getValue(i, 3).toString();
+				oppurt = response.getDataTable().getValue(i, 4).toString();
+				website = response.getDataTable().getValue(i, 5).toString();
+				countOfrowsInserted++;
+				if ((countOfrowsInserted == 1) && ((i + 1) != rows))
+				{
+					google.script.run.withSuccessHandler(showSuccessOfInsertSfdc).withFailureHandler(showError).insertRecord_sfdc(lastProgramId,
+							company_type, pod, cid, proposed_company_name, oppurt, website, rows, trixpathidd, progname, batchId,
+							countOfrowsInserted, 'start');
+				}
+				if ((countOfrowsInserted > 1) && (countOfrowsInserted < rows))
+				{
+					google.script.run.withSuccessHandler(showSuccessOfInsertSfdc).withFailureHandler(showError).insertRecord_sfdc(lastProgramId,
+							company_type, pod, cid, proposed_company_name, oppurt, website, rows, trixpathidd, progname, batchId,
+							countOfrowsInserted, '');
+				}
+				if (i + 1 == rows)
+				{
+					google.script.run.withSuccessHandler(showSuccessOfInsertSfdc).withFailureHandler(showError).insertRecord_sfdc(lastProgramId,
+							company_type, pod, cid, proposed_company_name, oppurt, website, rows, trixpathidd, progname, batchId,
+							countOfrowsInserted, 'done');
+				}
+			}
+		}
+        
+        google.script.run.withSuccessHandler(showSuccessInsertedUserHistory).withFailureHandler(showError).insertRecord_userHistory(progname, batchId, trixpathidd);
+	}
+    
+    function showSuccessInsertedUserHistory()
+    {
+      Logger.log("User history record updated.");
+    }
+    
+	//To reset the Add user screen fields except LDAP  when modifying ldap
+	function resetUserDetails()
+	{
+		$('#insertupdateMessage').hide();
+		document.getElementById("firstId").value = '';
+		document.getElementById("lastId").value = '';
+		document.getElementById("roleSelection").value = 'select';
+		document.getElementById("userTypeIdSelection").value = 'select';
+		var x1 = document.getElementById("programsAllowedSelection");
+		x1.options[0].selected = true;
+		x1.options[1].selected = false;
+		x1.options[2].selected = false;
+		x1.options[3].selected = false;
+	}
+	//To reset the Add user screen fields 
+	function resetUser()
+	{
+		resetUserDetails();
+		document.getElementById("ldapId").value = '';
+	}
+	//to add user
+	function addUser()
+	{
+		var role = document.getElementById("roleSelection").value;
+		var usserType = document.getElementById("userTypeIdSelection").value;
+		var first = document.getElementById("firstId").value;
+		var last = document.getElementById("lastId").value;
+		var ldap = document.getElementById("ldapId").value;
+		if (!ldap.match(/\S/))
+		{
+			alert('Please enter LDAP');
+			return false;
+		}
+		if (!first.match(/\S/))
+		{
+			alert('Please enter First Name');
+			return false;
+		}
+		if (!last.match(/\S/))
+		{
+			alert('Please enter Last Name');
+			return false;
+		}
+		if ((role == 'select') && (usserType == 'select'))
+		{
+			alert('Please select role and userType');
+			return false;
+		}
+		if (role == 'select')
+		{
+			alert('Please select role ');
+			return false;
+		}
+		if (usserType == 'select')
+		{
+			alert('Please select user type');
+			return false;
+		}
+		var x = document.getElementById("programsAllowedSelection");
+		var SelBranchVal = "";
+		for (var i = 1; i < x.options.length; i++)
+		{
+			if (x.options[i].selected == true)
+			{
+				SelBranchVal = SelBranchVal + x.options[i].value + ",";
+			}
+		}
+		var removedCommaFromLast = SelBranchVal.substring(0, SelBranchVal.length - 1);
+		var allowedProgs = removedCommaFromLast;
+		if (role != 'Lead')
+		{
+			if ((allowedProgs == 'select') || (allowedProgs == ''))
+			{
+				alert('Please select program');
+				return false;
+			}
+		}
+		google.script.run.insertRecord_Users(first, last, ldap, role, usserType, allowedProgs);
+		$('#insertupdateMessage').show();
+		document.getElementById("firstId").value = '';
+		document.getElementById("lastId").value = '';
+		document.getElementById("ldapId").value = '';
+		document.getElementById("roleSelection").value = '';
+		document.getElementById("userTypeIdSelection").value = '';
+		document.getElementById("programsAllowedSelection").value = 'select';
+	}
+	function modifyUser()
+	{
+		var ldapVal = document.getElementById("ldapId").value;
+		if (!ldapVal.match(/\S/))
+		{
+			alert('Please enter Ldap');
+			return false;
+		}
+		var searchLdap = document.getElementById("ldapId").value;
+		google.script.run.withSuccessHandler(showSuccessOfModifiedUser).withFailureHandler(showError).getModifiedUser(searchLdap);
+	}
+
+	function getProgramData(returnDistProgramValue)
+	{
+
+		var ret = returnDistProgramValue.toString();
+		var response = ret.split(",");
+		for (var i = 0; i < response.length; i++)
+		{
+			var option = document.createElement("option");
+			option.text = response[i];
+			option.value = response[i];
+			var select = document.getElementById("ProgramSelection_dynamic");
+			select.appendChild(option);
+		}
+		for (var i = 0; i < response.length; i++)
+		{
+			var option = document.createElement("option");
+			option.text = response[i];
+			option.value = response[i];
+			option.selected = "selected";
+			var select = document.getElementById("ProgramSelectionBar");
+			select.appendChild(option);
+			pieChartProgram = response[i];
+		}
+		for (var i = 0; i < response.length; i++)
+		{
+			var option = document.createElement("option");
+			option.text = response[i];
+			option.value = response[i];
+			var select = document.getElementById("ProgramSelectionPie");
+			select.appendChild(option);
+
+		}
+        pieChartProgram = document.getElementById("ProgramFlagBar").value;
+		programLoad(pieChartProgram);
+	}
+
+	function getLDAPData(distinctLDAP)
+	{
+		var ret = distinctLDAP.toString();
+		var response = ret.split(",");
+
+		for (var i = 0; i < response.length; i++)
+		{
+			var option = document.createElement("option");
+			option.text = response[i];
+			option.value = response[i];
+			var select = document.getElementById("ldapsId");
+			select.appendChild(option);
+			var option1 = document.createElement("option");
+			option1.text = response[i];
+			option1.value = response[i];
+			var select = document.getElementById("reassignUserId");
+			select.appendChild(option1);
+		}
+	}
+
+	//To show Exported URL in the front end
+	function getExportUrl(data)
+	{
+		var scrt_var = data[0];
+		var a = document.getElementById('sheetURLID');
+		a.href = scrt_var;
+		$('#sheetURLID').show();
+		document.getElementById("datatableMessageId").innerHTML = " ";
+	}
+	//Main function to show the filtered results in Report Screen
+	function getLeadResultsData(dynamicdata)
+	{
+		if (dynamicdata.length <= 1)
+		{
+			document.getElementById("datatablevalue").innerHTML = "No Records Found";
+		}
+		else
+		{
+			var splitdynamiccoloumns = dynamicdata[0].split(",");
+			data2 = new google.visualization.DataTable();
+			var sData = '';
+			for (var i = 0; i < splitdynamiccoloumns.length - 1; i++)
+			{
+				var headers = "Col" + i;
+				data2.addColumn('string', splitdynamiccoloumns[i]);
+			}
+			for (var i = 1; i < dynamicdata.length; i++)
+			{
+				if (dynamicdata[i] != null)
+				{
+					sData = '';
+					sData = dynamicdata[i].split(',');
+                    sData = decrypt(sData); // Decrypting
+					if (sData.length != data2.getNumberOfColumns())
+					{
+						//alert('inside if of len not matched')
+					}
+					else
+					{
+						data2.addRow(sData);
+					}
+				}
+			}
+			document.getElementById("datatablevalue").innerHTML = "";
+			var cssClassNames = {'headerRow':'large-font bold-font','tableRow':'','oddTableRow':'','selectedTableRow':'orange-background','hoverTableRow':'','headerCell':'','tableCell':'','rowNumberCell':'underline-blue-font'};
+			table1 = new google.visualization.Table(document.getElementById("datatablevalue"));
+			var options1 = {'cssClassNames':cssClassNames};
+            
+			var stats = document.getElementById('statusAssignment').value;
+			if (stats == 'done')
+			{
+				document.getElementById("datatablevalue").innerHTML = "Currently No logic for Done";
+			}
+			else
+			{
+				table1.draw(data2, options1);
+			}
+			if ((stats == WIP_QA) || (stats == WIP_AGENT) || (stats == IDLE))
+			{
+				releaseOrReassign = RELEASE;
+				google.visualization.events.addListener(table1, 'select', selectHandler);
+			}
+			if ((stats == CLARIFICATION_AGENT) || (stats == CLARIFICATION_QA) || (stats == QA) || (stats == WIP_AGENTREWORK) || (stats == WIP_QAREWORK))
+			{
+				releaseOrReassign = REASSIGN;
+				google.visualization.events.addListener(table1, 'select', selectHandler);
+			}
+		}
+	}
+    
+	function selectHandler()
+	{
+		var selection = table1.getSelection();
+		var message = '';
+		for (var i = 0; i < selection.length; i++)
+		{
+			var item = selection[i];
+			if (item.row != null && item.column != null)
+			{
+				var str = data2.getFormattedValue(item.row, item.column);
+				message += '{row:' + item.row + ',column:' + item.column + '} = ' + str + '\n';
+			}
+			else if (item.row != null)
+			{
+				var str = data2.getFormattedValue(item.row, 0);
+				message += '{row:' + item.row + ', column:none}; value (col 0) = ' + str + '\n';
+				releaseRowNum = item.row;
+			}
+			else if (item.column != null)
+			{
+				var str = data2.getFormattedValue(0, item.column);
+				message += '{row:none, column:' + item.column + '}; value (row 0) = ' + str + '\n';
+			}
+		}
+        releaseRowNumArr.push(releaseRowNum);
+		if (message == '')
+		{
+			message = 'nothing';
+		}
+		if (releaseOrReassign == RELEASE)
+		{
+			document.getElementById("datatableMessageId").innerHTML = "Please click on Release/Reassign";
+		}
+		if (releaseOrReassign == REASSIGN)
+		{
+			document.getElementById("datatableMessageId").innerHTML = "Please click on Reassign to assign the ticket";
+		}
+//		visualization.setSelection([])
+	}
+    
+	//To display Count in Report Screen
+	function getLeadResultsCount(dynamicdata)
+	{
+		releaseRowNum = -1;
+		var stats = document.getElementById("statusAssignment").value;
+		if (stats == DONE)
+		{
+			document.getElementById("datatablevalue").innerHTML = "Currently No logic for Done";
+		}
+		else
+		{
+        
+           var countOfResults = dynamicdata;
+           document.getElementById("datatablevalue").innerHTML = "Count:" + countOfResults;
+		}
+	}
+	//To get filtered results  of Report Screen
+	function getResults(fromSubOrExport)
+	{
+		releaseRowNum = -1;
+		$('#reassignUserId').hide();
+        $('#reassignSubmitId').hide();
+		$('#sheetURLID').hide();
+		document.getElementById("datatablevalue").innerHTML = '';
+		document.getElementById("datatableMessageId").innerHTML = '';
+		var leadProgrm = document.getElementById("ProgramSelection_dynamic").value;
+		var date = document.getElementById("datepicker12").value;
+		var hourAssignment = document.getElementById("hourAssignment").value;
+		/*if (leadProgrm == 'select')
+		{
+			alert('Please select Program ');
+			return false;
+		}*/
+		if (hourAssignment != 'select')
+		{
+			if (date.length < 1)
+			{
+				alert('Please select Date ');
+				return false;
+			}
+		}
+		var statusAssignment = document.getElementById("statusAssignment").value;
+		var ldapsId = document.getElementById("ldapsId").value;
+		if (fromSubOrExport == 'fromExport')
+		{
+			document.getElementById("datatableMessageId").innerHTML = "Exporting the records please wait....."
+			google.script.run.withSuccessHandler(getExportUrl).exportToExcel_Report(leadProgrm, date, hourAssignment, statusAssignment,
+					fromSubOrExport, ldapsId);
+		}
+		else if (fromSubOrExport == 'fromCount')
+		{
+			google.script.run.withSuccessHandler(getLeadResultsCount).getCountOfReport(leadProgrm, date, hourAssignment, statusAssignment,
+					fromSubOrExport, ldapsId);
+		}
+		else
+		{
+			google.script.run.withSuccessHandler(getLeadResultsData).getLeadResults(leadProgrm, date, hourAssignment, statusAssignment,
+					fromSubOrExport, ldapsId);
+		}
+	}
+	//To Release a ticket
+	function changeToRelease()
+	{
+		
+		var statss = document.getElementById("statusAssignment").value;
+		if ((statss == 'wip_agent') || (statss == 'wip_qa') || (statss == 'Idle'))
+		{
+        
+          var selRowsSize = releaseRowNumArr.length;
+          if(selRowsSize > 0)
+          {
+          
+          for(var i=0 ;i < selRowsSize;i++ )
+          {
+             var cid = data2.getValue(releaseRowNumArr[i], 2).toString();
+             var status = data2.getValue(releaseRowNumArr[i], 6).toString();
+             google.script.run.withFailureHandler(showError).releaseUserAgent(cid, status);
+          
+             if(selRowsSize > 1)
+               { document.getElementById("datatableMessageId").innerHTML = "Your Tickets got realeased";}
+            else
+                { document.getElementById("datatableMessageId").innerHTML = "Your Ticket got realeased";}
+          }
+          
+          releaseRowNumArr = [];
+          }
+          else
+          {
+            document.getElementById("datatableMessageId").innerHTML = "Please select atleast one ticket and then click on Release Button ";
+          }   
+ 		}
+		else
+		{
+			document.getElementById("datatableMessageId").innerHTML = "Not A Valid Operation"
+		}
+	}
+	//To clear the previosly loaded components on click of submit
+	function hideButtons()
+	{
+		$('#sheetURLID').hide();
+	}
+	//To display count of completed tickets in Report Screen
+	function displayStatusAtTop(progSelected)
+	{
+		document.getElementById("tickets").innerHTML = '';
+		google.script.run.withSuccessHandler(getStatusTickets).getStatusTickets(progSelected);
+	}
+	function getStatusTickets(countOfTickets)
+	{
+//		document.getElementById("tickets").innerHTML = "<b>Status:</b> " + countOfTickets[0] + "/" + countOfTickets[1];
+	}
+	//To validate  whether  Reassign  is valid
+	function changeToWIP()
+	{
+		var statss = document.getElementById("statusAssignment").value;
+
+		if ((statss == 'qa') || (statss == 'clarification_agent') || (statss == 'clarification_qa') || (statss == 'wip_agent') || (statss == 'wip_qa') || (statss == 'Idle') || (statss == 'wip_agent_rework') || (statss == 'wip_qa_rework'))
+		{
+			if (typeof releaseRowNum != 'undefined')
+			{
+				if (releaseRowNum >= 0)
+				{
+					var releasedData = data2.getValue(releaseRowNum, 1).toString();
+					$('#reassignUserId').show();
+                    $('#reassignSubmitId').show();
+				}
+				else
+				{
+					document.getElementById("datatableMessageId").innerHTML = "Please select atleast one ticket and then click on Reassign Button";
+				}
+			}
+			else
+			{
+				document.getElementById("datatableMessageId").innerHTML = "Please select atleast one ticket and then click on Reassign Button";
+			}
+		}
+		else
+		{
+			document.getElementById("datatableMessageId").innerHTML = "Not A valid Operation";
+		}
+	}
+	//To reassign to the user
+	function reassignToUser()
+	{
+       var selectedStatus = document.getElementById("statusAssignment").value;
+       var ldap = document.getElementById("reassignUserId").value; 
+
+        var selRowsSize = releaseRowNumArr.length;
+        if(selRowsSize > 0)
+        {
+        if(ldap != "select")
+            { 
+              for(var i=0 ;i < selRowsSize;i++ )
+              {
+                var cid = data2.getValue(releaseRowNumArr[i], 2).toString();
+                var status = data2.getValue(releaseRowNumArr[i], 6).toString();
+               
+			    google.script.run.withFailureHandler(showError).reassignToWIP(cid, status, ldap);
+                
+                if(selRowsSize > 1)
+                    {document.getElementById("datatableMessageId").innerHTML = "Your Tickets got reassigned";}
+                else
+                    {document.getElementById("datatableMessageId").innerHTML = "Your Ticket got reassigned";}
+                
+                $('#reassignUserId').hide();
+                $('#reassignSubmitId').hide();
+               }
+            }
+            else
+            {
+               document.getElementById("datatableMessageId").innerHTML = "Please select a ldap to reassign";
+            }
+            releaseRowNumArr = [];
+         }
+         else
+         {
+             document.getElementById("datatableMessageId").innerHTML = "Please select atleast one ticket and then click on Release Button ";
+         }   
+        releaseRowNum = -1;
+	}
+	//To get cid count in QA
+	function getTotalCidCount(response)
+	{
+		totalCidCount = response;
+	}
+
+	//To display Dashboard Chart
+	function dashboardProgramChanged(value)
+	{  
+       if(value == 'programs')
+        {
+    
+             AllPieFlag = 2;
+             var programVal = document.getElementById("ProgramFlagBar").value;
+             var programType = document.getElementById("ProgramSelectionBar").value;
+             google.script.run.withSuccessHandler(drawPieChart).dashboardDataDateRange(programVal,programType,'','',"empty");
+        }
+        else
+       {
+			pieChartProgram = value;
+			google.script.run.withSuccessHandler(drawPieChart).dashboardData(value, "none", "none");
+            
+            AllPieFlag = 1;
+		}
+    }
+
+	function drawPieChart(response)
+	{
+       var programVal = document.getElementById("ProgramFlagBar").value;
+       var programType = document.getElementById("ProgramSelectionBar").value;
+       
+      if(programType == "select"){programType = "all programs"}  
+     
+       if(response[2].toString() == "")
+       {
+        
+         document.getElementById('piechart').innerHTML = "No Records Found";
+    
+       }
+       else if(response[0] == 'program')
+        {
+         var data3 = new google.visualization.DataTable();
+		 data3.addColumn('string', 'Type');
+		 data3.addColumn('number', 'Count');
+         var first;
+         var second;
+         var resp = response[2];
+		for (var i = 0; i < resp.length; i++)
+		{
+			var use = resp[i].split(',');
+		
+            if(use[1] == "qa"){first = "agentCompleted";}else if(use[1] == "completed"){first = "qaAudited";}else{first = use[1];}
+      	    second = use[0];
+			data3.addRow([first,parseInt(second)]);
+		}
+        
+        if(AllPieFlag == 0){ var title = capitalizeFirstLetter(programVal)+ " production chart for "+programType+ " for date "+sdate+ " to "+edate; ;}
+        else if(AllPieFlag == 1){var title = capitalizeFirstLetter(programVal)+ " production chart for "+programType}
+        else if(AllPieFlag == 2){ var title = capitalizeFirstLetter(programVal)+ " production chart for "+programType;}
+     
+		var options = {title:title};
+		document.getElementById("piechart").innerHTML = "";
+        var cssClassNames = {
+       'headerRow': 'darkblue-font large-font bold-font',
+       'tableRow': '',
+       'oddTableRow': 'beige-background',
+       'headerCell': 'orange-background gold-border',
+       'tableCell': '',
+       'rowNumberCell': 'underline-blue-font'
+       };
+    
+        var tabOptions = {width:'50%','showRowNumber': false, 'allowHtml': true, 'cssClassNames': cssClassNames,'is3Dtrue':true};
+        if($("#togPieId").val() == "Toggle Table")
+        {
+          var chart = new google.visualization.PieChart(document.getElementById('piechart'));
+		  chart.draw(data3, options);
+        }
+        else if($("#togPieId").val() == "Toggle PieChart"){
+          var table = new google.visualization.Table(document.getElementById('piechart'));
+          table.draw(data3 ,tabOptions);
+        }
+        
+		}
+        else if(response[0] == 'flag')
+        {
+            var arr = new Array();
+            var arr1 = new Array();
+            var flags = response[2].toString().split(",");
+            var columns = response[1].toString().split(",");
+            var sum = 0;
+            for(var i = 0;i < columns.length ;i++)
+            {
+               arr = [columns[i],parseInt(flags[i])];
+               arr1.push(arr);
+               sum += parseInt(flags[i]);
+               
+            }
+            
+        if(sum == 0)
+        {
+            document.getElementById('piechart').innerHTML = "No Records Found";
+        }
+        else
+        {
+            var data3 = new google.visualization.DataTable();
+		    data3.addColumn('string', 'Flags');
+		    data3.addColumn('number', 'Count');
+            for(var i = 0;i < columns.length ;i++)
+            {
+               data3.addRow([columns[i],parseInt(flags[i])]);
+            }
+         
+            
+          if(AllPieFlag == 0){ var title = capitalizeFirstLetter(programVal)+ " production chart for "+programType+ " for date "+sdate+ " to "+edate; ;}
+          else if(AllPieFlag == 1){var title = capitalizeFirstLetter(programVal)+ " production chart for "+programType; }
+          else if(AllPieFlag == 2){ var title = capitalizeFirstLetter(programVal)+ " production chart for "+programType;}
+     
+		  var options = {title:title};
+          document.getElementById("piechart").innerHTML = "";
+          var cssClassNames = {
+          'headerRow': 'darkblue-font large-font bold-font',
+          'tableRow': '',
+          'oddTableRow': 'beige-background',
+          'headerCell': 'orange-background gold-border',
+          'tableCell': '',
+          'rowNumberCell': 'underline-blue-font'
+          };
+    
+          var tabOptions = {width:'50%','showRowNumber': false, 'allowHtml': true, 'cssClassNames': cssClassNames,'is3Dtrue':true};
+          if($("#togPieId").val() == "Toggle Table")
+          {
+          var chart = new google.visualization.PieChart(document.getElementById('piechart'));
+          chart.draw(data3, options);
+          }
+          else if($("#togPieId").val() == "Toggle PieChart"){
+          var table = new google.visualization.Table(document.getElementById('piechart'));
+          table.draw(data3 ,tabOptions);
+          }
+       
+	     }
+		}
+    
+ 
+	}
+
+	function drawBarChart(response)
+	{
+		data4 = new google.visualization.DataTable();
+		data4.addColumn('string', 'user');
+		data4.addColumn('number', 'agentCompleted');
+		data4.addColumn('number', 'qaAudited');
+		data4.addColumn('number', 'clarificationAgent');
+		data4.addColumn('number', 'wipQA');
+		data4.addColumn('number', 'wipAgent');
+		data4.addColumn('number', 'clarificationQA');
+		data4.addColumn('number', 'wipReworkAgent');
+		data4.addColumn('number', 'wipReworkQA');
+		data4.addColumn('number', 'externalUnits');
+		data4.addColumn('number', 'qaScore %');
+		for (var i = 0; i < response.length; i++)
+		{
+			var record = response[i].split(',');
+			var ldapAgent = record[0];
+			var qa = record[3];
+            var completed = record[5];
+			var clarificationAgent = record[1];
+            var clarificationQa = record[6];
+			var wipAgent = record[2];
+            var wipQa = record[4];
+            var wipAgentRework = record[7];
+            var wipQARework = record[8];
+            var externalUnits = record[9];
+            var qaScore = record[10];
+			if (ldapAgent == "null")
+			{
+//				data4.addRow(["Agent",parseInt(unassigned),0,0,0,0,0,0]);
+			}
+			else
+			{
+		      data4.addRow([ldapAgent,parseInt(qa),parseInt(completed),parseInt(clarificationAgent),parseInt(wipQa),parseInt(wipAgent),parseInt(clarificationQa),parseInt(wipAgentRework),parseInt(wipQARework),parseInt(externalUnits),parseInt(qaScore)]);
+			}
+		}
+		google.script.run.withSuccessHandler(drawBarChartQA).barchartDataQA(barChartProgram);
+	}
+
+	function drawBarChartQA(response)
+	{
+		for (var i = 0; i < response.length; i++)
+		{
+			var record = response[i].split(',');
+			var ldapQA = record[0];
+			var qa = record[1];
+			var completed = record[3];
+			var clarificationQA = record[2];
+			var wipQA = record[4];
+			if (ldapQA == "null")
+			{
+				if (qa == 0)
+				{}
+				else
+				{
+//					data4.addRow(["QA",0,parseInt(qa),0,0,0,0,0]);
+				}
+			}
+			else
+			{
+				data4.addRow([ldapQA,parseInt(qa),parseInt(completed),0,parseInt(clarificationQA),0,parseInt(wipQA),0,0,0,0]);
+			}
+		}
+		if (barChartProgram != "none")
+		{
+			var datas = "Overall Status Chart: " + barChartProgram;
+			var options = {title:datas,isStacked:true};
+		}
+		else
+		{
+			var options = {title:'Overall Status Chart: All Program',isStacked:true};
+		}
+		document.getElementById('barchart').innerHTML = "";
+		var barchartTemp = document.getElementById('barchart');
+     var cssClassNames = {		
+    		
+    'headerRow': 'darkblue-font large-font bold-font',		
+    'tableRow': '',		
+    'oddTableRow': 'beige-background',		
+    'headerCell': 'orange-background gold-border',		
+    'tableCell': '',		
+    'rowNumberCell': 'underline-blue-font'		
+    };		
+    var tabOptions = {width:'90%','showRowNumber': false, 'allowHtml': true, 'cssClassNames': cssClassNames,'is3Dtrue':true};		
+    		
+        if($("#togId").val() == "Toggle Table")		
+        {		
+          chart1 = new google.visualization.ColumnChart(barchartTemp);		
+          chart1.draw(data4, options);		
+        }		
+        else if($("#togId").val() == "Toggle Chart"){		
+          togtable = new google.visualization.Table(barchartTemp);		
+          togtable.draw(data4 ,tabOptions);		
+        }		
+         AllProgramFlag =1;		
+	}
+
+	function qualityScore(value)
+	{
+		if (value == "QA_wise")
+		{
+			$('#monthSelection').hide();
+			$('#month').hide();
+			$('#norecords').hide();
+			google.script.run.withSuccessHandler(getTotalCidCount).totalCidCountQA(0);
+            google.script.run.withSuccessHandler(drawBarChartforQualityScoreNew).externalQualityScoreQAAgentWise();
+
+		}
+		if (value == "program_wise")
+		{
+			$('#monthSelection').hide();
+			$('#month').hide();
+			$('#norecords').hide();
+			google.script.run.withSuccessHandler(getTotalCidCount).totalCidCountQA(0);
+            google.script.run.withSuccessHandler(drawBarChartforQualityScoreNew).externalQualityScoreQAProgramWise();
+		}
+		if (value == "day_wise")
+		{
+			$('#monthSelection').show();
+			$('#month').show();
+			$('#norecords').hide();
+		}
+	}
+
+	function loadqualityScoreQA()
+	{
+		loadProgramsFile();
+		google.script.run.withSuccessHandler(getTotalCidCount).totalCidCountQA(0);
+		google.script.run.withSuccessHandler(drawBarChartforQualityScoreNew).externalQualityScoreQAAgentWise();
+	}
+
+	function drawBarChartforQualityScore(response)
+	{
+		var dataScore = new google.visualization.DataTable();
+		dataScore.addColumn('string', 'user');
+		dataScore.addColumn('number', 'Accuracy');
+        dataScore.addColumn({type: 'string', role: 'annotation'});
+        
+		var totalErrorCount = 0;
+		for (var i = 0; i < response.length; i++)
+		{
+			var record = response[i].split(',');
+            var sample = record[0];
+			var correctCompanyID = record[1];
+			var flagReason = record[2];
+			var childrdivisionCompanyID = record[3];
+			var sourceID = record[4];
+			var destinationID = record[5];
+			var mergeFlag = record[6];
+            var individualScore = '';
+            var percentageScore = '';
+			var ErrorCount = parseInt(correctCompanyID) + parseInt(flagReason) + parseInt(childrdivisionCompanyID) + parseInt(sourceID) + parseInt(destinationID) + parseInt(mergeFlag);
+			totalErrorCount = totalErrorCount + ErrorCount;
+//            individualScore =  ((ldapsCount[i] * 6) - ErrorCount)/ (ldapsCount[i] * 6);
+//            percentageScore =  Math.round(individualScore * 100.0) / 100.0 +"%";
+           
+            dataScore.addRow([sample,ErrorCount,percentageScore]);
+
+		}
+        var view = new google.visualization.DataView(dataScore);
+        view.setColumns([0, 1, 1, 2]);
+        
+		var score = ((totalCidCount * 6) - totalErrorCount) / ((totalCidCount) * 6) * 100;
+		var datas;
+        if (isNaN(score))
+        {
+          datas = "External Quality Score: ";
+        }
+        else
+        {
+          datas = "External Quality Score: " + Math.round(score * 100.0) / 100.0 + "%";
+        }
+
+//        var options1 = {title:datas,isStacked:true};
+        var options = { series: { 0: {type: 'bars'},1:{type: 'line',color: 'grey',lineWidth: 0,pointSize: 0,visibleInLegend: false}},title:datas,isStacked:true};
+        
+		document.getElementById('scorechart').innerHTML = "";
+		var scoreChartTemp = document.getElementById('scorechart');
+		var chart2 = new google.visualization.ColumnChart(scoreChartTemp);
+
+//        chart2.draw(dataScore, options1);
+        chart2.draw(view,options);
+	}
+
+	function drawBarChartforQualityScoreProgram(response)
+	{
+		var dataScore = new google.visualization.DataTable();
+		dataScore.addColumn('string', 'user');
+		dataScore.addColumn('number', 'Accuracy');
+        dataScore.addColumn({type: 'string', role: 'annotation'});
+        
+		var totalErrorCount = 0;
+		for (var i = 0; i < response.length; i++)
+		{
+			var record = response[i].split(',');
+			var programBatch = record[0];
+			var correctCompanyID = record[1];
+			var flagReason = record[2];
+			var childrdivisionCompanyID = record[3];
+			var sourceID = record[4];
+			var destinationID = record[5];
+			var mergeFlag = record[6];
+			var ErrorCount = parseInt(correctCompanyID) + parseInt(flagReason) + parseInt(childrdivisionCompanyID) + parseInt(sourceID) + parseInt(destinationID) + parseInt(mergeFlag);
+			totalErrorCount = totalErrorCount + ErrorCount;
+            var individualScore =  ((totalCidCount * 6) - ErrorCount)/ ((totalCidCount) * 6) * 100;
+            var percentageScore =  Math.round(individualScore * 100.0) / 100.0 +"%";
+			dataScore.addRow([programBatch,ErrorCount,percentageScore]);
+		}
+        var view = new google.visualization.DataView(dataScore);
+        view.setColumns([0, 1, 1, 2]);
+		var score = ((totalCidCount * 6) - totalErrorCount) / ((totalCidCount) * 6) * 100;
+		var datas = "External Quality Score: " + Math.round(score * 100.0) / 100.0 + "%";
+//		var options1 = {title:datas,isStacked:true};
+        var options = { series: { 0: {type: 'bars'},1:{type: 'line',color: 'grey',lineWidth: 0,pointSize: 0,visibleInLegend: false}},title:datas,isStacked:true};
+		document.getElementById('scorechart').innerHTML = "";
+		var scoreChartTemp = document.getElementById('scorechart');
+		var chart2 = new google.visualization.ColumnChart(scoreChartTemp);
+//		chart2.draw(dataScore, options1);
+        chart2.draw(view,options);
+	}
+
+	function getmonthData(value)
+	{
+		google.script.run.withSuccessHandler(getTotalCidCount).totalCidCountQA(value);
+        google.script.run.withSuccessHandler(drawBarChartforQualityScoreNew).externalQualityScoreQADayWise(value);
+	}
+
+	function drawBarChartforQualityScoreDaywise(response)
+	{
+		var dataScore = new google.visualization.DataTable();
+		dataScore.addColumn('string', 'user');
+		dataScore.addColumn('number', 'Error Count');
+        dataScore.addColumn({type: 'string', role: 'annotation'});
+		var totalErrorCount = 0;
+		for (var i = 0; i < response.length; i++)
+		{
+			var record = response[i].split(',');
+			var day = record[0];
+			var correctCompanyID = record[1];
+			var flagReason = record[2];
+			var childrdivisionCompanyID = record[3];
+			var sourceID = record[4];
+			var destinationID = record[5];
+			var mergeFlag = record[6];
+			var ErrorCount = parseInt(correctCompanyID) + parseInt(flagReason) + parseInt(childrdivisionCompanyID) + parseInt(sourceID) + parseInt(destinationID) + parseInt(mergeFlag);
+			totalErrorCount = totalErrorCount + ErrorCount;
+            var individualScore =  ((totalCidCount * 6) - ErrorCount)/ ((totalCidCount) * 6) * 100;
+            var percentageScore =  Math.round(individualScore * 100.0) / 100.0 +"%";
+			dataScore.addRow([day,ErrorCount,percentageScore]);
+		}
+		var score = ((totalCidCount * 6) - totalErrorCount) / ((totalCidCount) * 6) * 100;
+		if (response.length == 0)
+		{
+			var datas = "External Quality Score: "
+			var options1 = {title:datas,isStacked:true};
+			$('#norecords').show();
+		}
+		else
+		{
+			$('#norecords').hide();
+			var datas = "External Quality Score: " + Math.round(score * 100.0) / 100.0 + "%";
+//			var options1 = {title:datas,isStacked:true};
+            var options = { series: { 0: {type: 'bars'},1:{type: 'line',color: 'grey',lineWidth: 0,pointSize: 0,visibleInLegend: false}},title:datas,isStacked:true};
+            
+            var view = new google.visualization.DataView(dataScore);
+            view.setColumns([0, 1, 1, 2]);
+            document.getElementById('scorechart').innerHTML = "";
+            var scoreChartTemp = document.getElementById('scorechart');
+            var chart2 = new google.visualization.ColumnChart(scoreChartTemp);
+//            chart2.draw(dataScore, options1);
+            chart2.draw(view,options);
+         }
+	}
+
+	function programLoad(value)
+	{
+      
+       //google.script.run.withSuccessHandler(drawPieChart).dashboardData(value, "none", "none");
+        var programType = document.getElementById("ProgramSelectionBar").value;
+        google.script.run.withSuccessHandler(drawPieChart).dashboardDataDateRange(value,programType,sdate,edate,"empty");
+	}
+
+	function programChangedBar(value)
+	{
+		if (value == "select")
+		{
+
+			barChartProgram = 'none';
+			google.script.run.withSuccessHandler(drawBarChart).barchartData(barChartProgram);
+		}
+		else
+		{
+			barChartProgram = value;
+			google.script.run.withSuccessHandler(drawBarChart).barchartData(barChartProgram);
+
+		}
+
+	}
+    
+    $(function() {		
+    $('#reportrange span').html(moment().format('MMMM D, YYYY') + ' - ' + moment().format('MMMM D, YYYY'));		
+    $('#reportrange').daterangepicker({		
+        format: 'MM-DD-YYYY',		
+        minDate: '01/01/2012',		
+        maxDate: '12/31/2050',		
+        ranges: {'Today': [moment(), moment()],		
+                 'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],		
+                 'Last 7 Days': [moment().subtract(6, 'days'), moment()],		
+                 'Last 30 Days': [moment().subtract(29, 'days'), moment()],		
+                 'This Month': [moment().startOf('month'), moment().endOf('month')],		
+                 'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]		
+        },		
+        opens: 'left',		
+        drops: 'down'},		
+       		
+        function(start, end, label) {		
+        $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));		
+        sdate =start.format('YYYY-MM-DD');		
+        edate =end.format('YYYY-MM-DD');		
+        google.script.run.withSuccessHandler(drawBarChartDateRange).barchartDataDateRange(barChartProgram,"empty",sdate,edate);		
+        });		
+         $('li.active').click(function(){		
+         google.script.run.withSuccessHandler(drawBarChartDateRange).barchartDataDateRange(barChartProgram,"empty",sdate,edate);		
+        		
+        });		
+            		
+       });		
+       		
+        $(function() {		
+        $('#daterange span').html(moment().format('MMMM D, YYYY') + ' - ' + moment().format('MMMM D, YYYY'));		
+        $('#daterange').daterangepicker({		
+        format: 'MM-DD-YYYY',		
+        minDate: '01/01/2012',		
+        maxDate: '12/31/2050',		
+        ranges: {'Today': [moment(), moment()],		
+                 'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],		
+                 'Last 7 Days': [moment().subtract(6, 'days'), moment()],		
+                 'Last 30 Days': [moment().subtract(29, 'days'), moment()],		
+                 'This Month': [moment().startOf('month'), moment().endOf('month')],		
+                 'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]		
+        },		
+        opens: 'left',		
+        drops: 'down'},		
+        function(start, end, label) {		
+        $('#daterange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));		
+        sdate =start.format('YYYY-MM-DD');		
+        edate =end.format('YYYY-MM-DD');		
+        var programVal = document.getElementById("ProgramFlagBar").value;
+        var programType = document.getElementById("ProgramSelectionBar").value;	
+        google.script.run.withSuccessHandler(drawPieChart).dashboardDataDateRange(programVal,programType,sdate,edate,"empty");
+        AllPieFlag = 0;
+        });		
+        });
+
+    var prodCalStartDate = '05-01-2015';
+    var prodCalEndDate = mm+ '-' + dd + '-' + yyyy;
+    
+    $(function() {
+    $('#prodDateRange span').html('May 1, 2015 - ' + moment().format('MMMM D, YYYY'));
+    $('#prodDateRange').daterangepicker({
+        startDate: prodCalStartDate,
+        endDate: prodCalEndDate,
+        format: 'MM-DD-YYYY',
+        minDate: '01/01/2012',
+        maxDate: '12/31/2050',
+        ranges: {'Today': [moment(), moment()],
+                 'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                 'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                 'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+                 'This Month': [moment().startOf('month'), moment().endOf('month')],
+                 'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+        },
+        opens: 'left',
+        drops: 'down'},
+       
+        function(start, end, label) {
+         var divList = document.getElementById("productivityTab");
+         while (divList.hasChildNodes()) {   
+         divList.removeChild(divList.firstChild);
+         }
+        $('#prodDateRange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
+         ddate =start.format('YYYY-MM-DD');
+         edate =end.format('YYYY-MM-DD');
+         google.script.run.withSuccessHandler(createProductivityTablefilter).parseXml(ddate,edate);
+        });
+
+       });
+
+function drawBarChartDateRange(response)
+{
+        data4 = new google.visualization.DataTable();
+		data4.addColumn('string', 'user');
+		data4.addColumn('number', 'agentCompleted');
+		data4.addColumn('number', 'qaAudited');
+		data4.addColumn('number', 'clarificationAgent');
+		data4.addColumn('number', 'wipQA');
+        data4.addColumn('number', 'wipAgent');
+        data4.addColumn('number', 'clarificationQA');
+        data4.addColumn('number', 'wipReworkAgent');
+        data4.addColumn('number', 'wipReworkQA');
+        data4.addColumn('number', 'externalUnits');
+        data4.addColumn('number', 'qaScore %');
+
+		for (var i = 0; i < response.length; i++)
+		{
+        
+            var record = response[i].split(',');
+			var ldapAgent = record[0];
+            var clarificationAgent = record[1];
+            var wipAgent = record[2];
+            var qa = record[3];
+            var wipQa = record[4];
+            var completed = record[5];
+            var clarificationQa = record[6];
+            var wip_agent_rework = record[7];
+            var wip_qa_rework = record[8];
+            var external_units = record[9];
+            var qa_score = record[10];
+
+			if (ldapAgent == "null")		
+			{		
+              //data4.addRow(["Agent",parseInt(unassigned),0,0,0,0,0,0]);		
+			}		
+			else		
+			{		
+             data4.addRow([ldapAgent,parseInt(qa),parseInt(completed),parseInt(clarificationAgent),parseInt(wipQa),parseInt(wipAgent),parseInt(clarificationQa),parseInt(wip_agent_rework),parseInt(wip_qa_rework),parseInt(external_units),parseInt(qa_score)])
+			}		
+		}
+		google.script.run.withSuccessHandler(drawBarChartQADateRange).barchartDataQADateRange(barChartProgram,"empty",sdate,edate);
+ }
+ 
+function drawBarChartQADateRange(response){ 
+
+       for (var i = 0; i < response.length; i++)
+		{
+			var record = response[i].split(',');
+			var ldapQA = record[0];
+            var qa = record[1];
+            var clarificationQA = record[2];
+			var completed = record[3];
+			var wipQA = record[4];
+            data4.addRow([ldapQA,0,parseInt(completed),0,parseInt(clarificationQA),0,parseInt(wipQA),0,0,0,0]);
+		}
+		if (barChartProgram != "none")
+		{
+             
+			var datas = "Overall Status Chart: " + barChartProgram+" from "+sdate+" to "+edate;
+         
+			var options = {title:datas,isStacked:true};
+		}
+		else
+		{
+      
+			var options = {title:"Overall Status Chart: All Program from "+sdate+" to "+edate,isStacked:true};
+           
+		}
+      
+       	document.getElementById('barchart').innerHTML = "";
+		var barchartTemp = document.getElementById('barchart');
+
+    var cssClassNames = {
+    
+    'headerRow': 'darkblue-font large-font bold-font',
+    'tableRow': '',
+    'oddTableRow': 'beige-background',
+    'headerCell': 'orange-background gold-border',
+    'tableCell': '',
+    'rowNumberCell': 'underline-blue-font'
+    };
+
+  var tabOptions = {width:'90%','showRowNumber': false, 'allowHtml': true, 'cssClassNames': cssClassNames,'is3Dtrue':true};
+        if($("#togId").val() == "Toggle Table")
+        {
+          chart1 = new google.visualization.ColumnChart(barchartTemp);
+          chart1.draw(data4, options);
+        }
+        else if($("#togId").val() == "Toggle Chart"){
+          togtable = new google.visualization.Table(barchartTemp);
+          togtable.draw(data4 ,tabOptions);
+        }
+        
+        AllProgramFlag = 0;
+     }
+     
+     function decrypt(targetArr)
+     {
+       for (var i = 1; i < targetArr.length; i++)
+       {
+         var element = targetArr[i].replace(/~/g, ","); // Decrypting
+         targetArr[i] = element;
+       }
+       
+       return targetArr;
+     }
+
+     $(function() { 		
+     $("#togId").click(function(){		
+     		
+     if($("#togId").val() == "Toggle Table")		
+     {		
+      if(AllProgramFlag == 0)		
+      {		
+           google.script.run.withSuccessHandler(drawBarChartDateRange).barchartDataDateRange(barChartProgram,"empty",sdate,edate);		
+      }		
+      else if(AllProgramFlag == 1)		
+      {		
+         if (barChartProgram == "select")		
+		 {		
+            barChartProgram = 'none';		
+			google.script.run.withSuccessHandler(drawBarChart).barchartData(barChartProgram);		
+           		
+		 }		
+		else		
+		 {		
+			google.script.run.withSuccessHandler(drawBarChart).barchartData(barChartProgram);		
+     	 }		
+      }		
+      
+      $("#togId").val("Toggle Chart");		
+     }		
+     else if($("#togId").val() == "Toggle Chart")		
+     {		
+      if(AllProgramFlag == 0)		
+      {		
+        google.script.run.withSuccessHandler(drawBarChartDateRange).barchartDataDateRange(barChartProgram,"empty",sdate,edate);		
+      }		
+      else if(AllProgramFlag == 1)		
+      {		
+          if(barChartProgram == "select")		
+		  {		
+			barChartProgram = 'none';		
+			google.script.run.withSuccessHandler(drawBarChart).barchartData(barChartProgram);		
+		  }		
+		else		
+          {		
+			google.script.run.withSuccessHandler(drawBarChart).barchartData(barChartProgram);		
+		  }		
+      }		
+      $("#togId").val("Toggle Table");		
+     }		
+     		
+     }); });		
+     		
+     $(function() { 
+     $("#togPieId").click(function(){
+     
+     var programVal = document.getElementById("ProgramFlagBar").value;
+     var programType = document.getElementById("ProgramSelectionBar").value;
+
+     if($("#togPieId").val() == "Toggle Table")
+     {
+         if(AllPieFlag == 0){google.script.run.withSuccessHandler(drawPieChart).dashboardDataDateRange(programVal,programType,sdate,edate,"empty");}
+         else if(AllPieFlag == 1){google.script.run.withSuccessHandler(drawPieChart).dashboardData(programVal, "none", "none");}
+         else if(AllPieFlag == 2){google.script.run.withSuccessHandler(drawPieChart).dashboardDataDateRange(programVal,programType,"","","empty");}
+         $("#togPieId").val("Toggle PieChart");
+     }
+     else if($("#togPieId").val() == "Toggle PieChart")
+     {
+
+        if(AllPieFlag == 0){ google.script.run.withSuccessHandler(drawPieChart).dashboardDataDateRange(programVal,programType,sdate,edate,"empty");}
+        else if(AllPieFlag == 1){google.script.run.withSuccessHandler(drawPieChart).dashboardData(programVal, "none", "none");}
+        else if(AllPieFlag == 2){google.script.run.withSuccessHandler(drawPieChart).dashboardDataDateRange(programVal,programType,"","","empty");}
+        $("#togPieId").val("Toggle Table");
+     }
+     
+     });});
+     
+   function drawBarChartforQualityScoreNew(response)
+	{  
+          var str = response.toString();
+          var resToken = str.split("Count:");
+          var res1 = resToken[0];
+          var res2 = resToken[1];
+         
+          var dataScore = new google.visualization.DataTable();
+		  dataScore.addColumn('string', 'user');
+		  dataScore.addColumn('number', 'Accuracy');
+          dataScore.addColumn({type: 'string', role: 'tooltip'});
+          dataScore.addColumn({type: 'string', role: 'annotation'});
+         
+        
+          var res = res1.split('&');
+          var result = '';
+          var totalErrorCount = 0;
+          
+          for (var i = 0; i < res.length; i++)
+		{
+            result = res[i].toString();
+            if(result != "")
+            {
+            var record = result.split(',');
+            var ldapsOrprgrams = record[0];
+            var thirdParty = record[1];
+            var parentCompany = record[2];
+            var parentCompanyId = record[3];
+            var childComapnay = record[4];
+            var childCompanyId = record[5];
+            var divisionCompany = record[6];
+            var divisionCompanyId = record[7];
+            var childDivisionId = record[8];
+            var actionId = record[9];
+            var flagReason = record[10];
+            var sourceId = record[11];
+            var destId = record[12];
+            var mergeFlag = record[13];
+            var ErrorCount = parseInt(thirdParty) + parseInt(parentCompany) + parseInt(parentCompanyId) + parseInt(childComapnay) + parseInt(childCompanyId) + parseInt(divisionCompany) + parseInt(divisionCompanyId) + parseInt(childDivisionId) + parseInt(actionId) + parseInt(flagReason) + parseInt(sourceId) + parseInt(destId) + parseInt(mergeFlag);
+			totalErrorCount = totalErrorCount + ErrorCount;
+            
+            var totalCids = res2.split(',');
+            var individualCids = totalCids[i] ;
+            
+            if((ldapsOrprgrams != "null") || (individualCids != 0))
+            {
+               if(ErrorCount != 0)
+               {
+               var  individualScore =  ((individualCids * 13) - ErrorCount)/ (individualCids * 13) * 100;
+               var  percentageScore =  Math.round(individualScore * 100.0) / 100.0 + "%" ;
+               dataScore.addRow([ldapsOrprgrams,ErrorCount,"Error Count:"+ErrorCount+",Processed Cids:"+individualCids,percentageScore]);
+               }
+            }
+           
+            }
+         }
+        var view = new google.visualization.DataView(dataScore);
+        view.setColumns([0,1,2,3]);
+      
+     	var score = ((totalCidCount * 13) - totalErrorCount) / ((totalCidCount) * 13) * 100;
+		var datas = "External Quality Score: " + Math.round(score * 100.0) / 100.0 + "%";
+    
+        var options = { tooltip: { trigger: 'selection' },series: { 0: {type: 'bars',visibleInLegend:true}},title:datas};
+        
+		document.getElementById('scorechart').innerHTML = "";
+		var scoreChartTemp = document.getElementById('scorechart');
+		var chart2 = new google.visualization.ColumnChart(scoreChartTemp);
+        chart2.draw(view,options);
+    }
+    
+    function showError(errMsg)
+    {
+       alert(errMsg);
+    }
+ function capitalizeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+function getDynamicTables()
+{
+   var divList = document.getElementById("dynamicTab");
+    
+   while (divList.hasChildNodes()) {   
+    divList.removeChild(divList.firstChild);
+   }
+    var dashboardTablesArr = new Array();
+    dashboardTablesArr[0] = "CIDs Processed Report*~*select aa.EODReport as Date, aa.program_batch, aa.agentCompleted, ifnull(bb.qaAudited, 0) as qaAudited, aa.usertype as agentLocation, ifnull(bb.usertype, '') as qaLocation from (select a.EODReport, a.program_batch, sum(a.agentCompleted) as agentCompleted, b.usertype from	(select DATE('"+toadyDate+"') as EODReport, ldap_agent, program_batch, count(*) AS agentCompleted from sfdc where status = 'qa' and DATE(agent_end_time) = DATE('"+toadyDate+"') group by ldap_agent, program_batch) a left join users b on b.ldap = a.ldap_agent group by a.program_batch) aa left join (select c.EODReport, c.program_batch, sum(c.qaAudited) as qaAudited, d.usertype from (select DATE('"+toadyDate+"') as EODReport, ldap_qa, program_batch, count(*) AS qaAudited from sfdc where (status = 'completed' or status = 'wip_qa') and DATE(qa_end_time) = DATE('"+toadyDate+"') group by ldap_qa, program_batch) c left join users d on d.ldap = c.ldap_qa group by c.program_batch) bb on aa.program_batch = bb.program_batch;";
+    dashboardTablesArr[1] = "Quality Report with Actual Quality Score*~*SELECT DATE('"+toadyDate+"') as EODReport, COUNT(CASE WHEN (status = 'qa') THEN 1 ELSE NULL END) as agentCompleted, COUNT(t2.cid) as qaAudited, (COUNT(CASE WHEN (status = 'qa') THEN 1 ELSE NULL END) + COUNT(t2.cid)) as totalProcessedCIDs, SUM(t2.external_unit) as externalUnits, IFNULL((CONCAT((ROUND(((COUNT(t2.cid)-SUM(t2.external_unit))/COUNT(t2.cid))*100, 2)), '%')), '0.00%') as 'qaActualScore %' FROM sfdc t1 LEFT JOIN (SELECT cid, ldap_agent, ldap_qa, audited_on, external_unit FROM qa_history GROUP BY cid) t2 ON t1.cid = t2.cid WHERE DATE(t1.agent_end_time) = DATE('"+toadyDate+"');";
+    dashboardTablesArr[2] = "Quality Report*~*SELECT DATE('"+toadyDate+"') as EODReport, COUNT(t1.cid) as QAAuditedOnCIDsProcessedByAgentToday, (COUNT(CASE WHEN website_from_ics='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN current_company_rollup='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN correct_company_id='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN parent_on_npl='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN parent_company='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN parent_company_in_grm='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN child_company='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN child_company_in_grm='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN division_company='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN division_company_in_grm='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN childrdivision_company_id='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN action_on_mapping='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN flag_reason='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN merge_status='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN source_id='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN destination_id='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN merge_flag='rejected' THEN 1 ELSE NULL END)) AS InternalOpp, COUNT(CASE WHEN INSTR(CONCAT(website_from_ics,current_company_rollup,correct_company_id,parent_on_npl,parent_company,parent_company_in_grm,child_company,child_company_in_grm,division_company,division_company_in_grm,childrdivision_company_id,action_on_mapping,flag_reason,merge_status,source_id,destination_id,merge_flag), 'rejected') > 0 THEN 1 ELSE NULL END) AS InternalUnits, (COUNT(CASE WHEN parent_on_npl='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN parent_company='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN parent_company_in_grm='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN child_company='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN child_company_in_grm='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN division_company='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN division_company_in_grm='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN childrdivision_company_id='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN action_on_mapping='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN flag_reason='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN source_id='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN destination_id='rejected' THEN 1 ELSE NULL END) + COUNT(CASE WHEN merge_flag='rejected' THEN 1 ELSE NULL END)) AS ExternalOpp, COUNT(CASE WHEN INSTR(CONCAT(parent_on_npl,parent_company,parent_company_in_grm,child_company,child_company_in_grm,division_company,division_company_in_grm,childrdivision_company_id,action_on_mapping,flag_reason,source_id,destination_id,merge_flag), 'rejected') > 0 THEN 1 ELSE NULL END) AS ExternalUnits, IFNULL((CONCAT((ROUND(((COUNT(t1.cid) - COUNT(CASE WHEN INSTR(CONCAT(parent_on_npl,parent_company,parent_company_in_grm,child_company,child_company_in_grm,division_company,division_company_in_grm,childrdivision_company_id,action_on_mapping,flag_reason,source_id,destination_id,merge_flag), 'rejected') > 0 THEN 1 ELSE NULL END))/(COUNT(t1.cid))*100), 2)), '%')), '0.00%') AS 'ExternalUnits %' FROM sfdc t1 INNER JOIN qa t2 on t1.cid = t2.cid WHERE DATE(t1.agent_end_time) = DATE('"+toadyDate+"');";
+    dashboardTablesArr[3] = "CIDs Processed - Userwise Report*~*SELECT DATE('"+toadyDate+"') as EODReport, t1.ldap_agent, COUNT(t1.cid) as agentProcessed, COUNT(t2.cid) as qaAudited, IFNULL((SUM(t3.external_unit)), 0) as actualExternalUnits, IFNULL((CONCAT((ROUND(((COUNT(t3.cid)-SUM(t3.external_unit))/COUNT(t3.cid))*100, 2)), '%')), '0.00%') as 'actualQAScore %', COUNT(CASE WHEN INSTR(CONCAT(parent_on_npl,parent_company,parent_company_in_grm,child_company,child_company_in_grm,division_company,division_company_in_grm,childrdivision_company_id,action_on_mapping,flag_reason,source_id,destination_id,merge_flag), 'rejected') > 0 THEN 1 ELSE NULL END) AS correctedExternalUnits, IFNULL((CONCAT((ROUND((((COUNT(t2.cid) - COUNT(CASE WHEN INSTR(CONCAT(parent_on_npl,parent_company,parent_company_in_grm,child_company,child_company_in_grm,division_company,division_company_in_grm,childrdivision_company_id,action_on_mapping,flag_reason,source_id,destination_id,merge_flag), 'rejected') > 0 THEN 1 ELSE NULL END))/COUNT(t2.cid))*100), 2)), '%')), '0.00%') as 'qaScore %' FROM sfdc t1 LEFT JOIN qa t2 on t1.cid = t2.cid LEFT JOIN (SELECT cid, ldap_agent, ldap_qa, audited_on, external_unit FROM qa_history WHERE DATE(audited_on) = DATE('"+toadyDate+"') GROUP BY cid) t3 on t2.cid = t3.cid WHERE DATE(t1.agent_end_time) = DATE('"+toadyDate+"') group by t1.ldap_agent;";
+    dashboardTablesArr[4] = "Data Consistency Check for Parent Company*~*select parent_company, count(*) AS Count from agent where agent.parent_company regexp '^(0|1|a|n|N[.]A|NA2|NAa|nan|nq|s|N/A|N/|N[?]A|NO|00|n,a|NA|na)$' group by parent_company;";
+    dashboardTablesArr[5] = "Data Consistency Check for Parent Company (Name Length: 1 or 2 characters)*~*select parent_company, count(*) AS Count from agent where parent_company regexp '^((..)|(.))$' group by parent_company;";
+    dashboardTablesArr[6] = "Data Consistency Check for Child Company*~*select child_company, count(*) as count from agent where child_company regexp '^(0|1|a|n|N[.]A|NA2|NAa|nan|nq|s|N/A|N/|N[?]A|NO|00|n,a|NA|na)$' group by child_company;";
+    dashboardTablesArr[7] = "Data Consistency Check for Division Company*~*select division_company, count(*) as count from agent where division_company regexp '^(0|1|a|n|N[.]A|NA2|NAa|nan|nq|s|N/A|N/|N[?]A|NO|00|n,a|NA|na)$' group by division_company;";
+    dashboardTablesArr[8] = "Data Consistency Check for Current Company Rollup*~*select current_company_rollup, count(*) as count from agent where current_company_rollup regexp '^(0|1|a|n|N[.]A|NA2|NAa|nan|nq|s|N/A|N/|N[?]A|NO|00|n,a|NA|na)$' group by current_company_rollup;";
+    dashboardTablesArr[9] = "Data Consistency Check for Correct Company ID*~*select correct_company_id, count(*) as count from agent where correct_company_id < 100 group by correct_company_id;";
+    dashboardTablesArr[10] = "Data Consistency Check for Child or Division Company ID*~*select childrdivision_company_id, count(*) as count from agent where childrdivision_company_id < 100 group by childrdivision_company_id;";
+    dashboardTablesArr[11] = "Data Consistency Check for Source ID*~*select source_id, count(*) as count from agent where source_id < 100 group by source_id;";
+    dashboardTablesArr[12] = "Data Consistency Check for Destination ID*~*select destination_id, count(*) as count from agent where destination_id < 100 group by destination_id;";
+    dashboardTablesArr[13] = "CIDs Processed for Last 15 days*~*select a.processedDate, CASE WHEN (dayofweek(a.processedDate) = 1) THEN 'Sunday' WHEN (dayofweek(a.processedDate) = 2) THEN 'Monday' WHEN (dayofweek(a.processedDate) = 3) THEN 'Tuesday' WHEN (dayofweek(a.processedDate) = 4) THEN 'Wednesday' WHEN (dayofweek(a.processedDate) = 5) THEN 'Thursday' WHEN (dayofweek(a.processedDate) = 6) THEN 'Friday' WHEN (dayofweek(a.processedDate) = 7) THEN 'Saturday' END as processedDay, a.agentCompleted, ifnull(b.qaAudited, 0) as qaAudited, (a.agentCompleted + ifnull(b.qaAudited, 0)) as totalProcessed from (select DATE(agent_end_time) as processedDate, count(*) as agentCompleted from sfdc where status = 'qa' group by DATE(agent_end_time) order by DATE(agent_end_time) desc limit 15) a left join (select DATE(qa_end_time) as processedDate, count(*) as qaAudited from sfdc where (status = 'completed' or status = 'wip_qa') group by DATE(qa_end_time) order by DATE(qa_end_time) desc limit 15) b on a.processedDate = b.processedDate;";
+     for(var i=0;i<dashboardTablesArr.length;i++)
+    {
+       google.script.run.withSuccessHandler(createDynamicTable).getDynamicQueryResult(dashboardTablesArr[i],'normalQuery','dynamicTab');
+    
+    }
+}
+
+function createDynamicTable(response)
+{
+      var dataTable = new google.visualization.DataTable();
+      var title = response[response.length-2];
+      var tabName = response[response.length-1];
+      var documentTab;
+    
+      if(tabName == 'dynamicTab')
+      {
+         documentTab = document.getElementById('dynamicTab');
+      }
+      else if(tabName == 'iqmsTab')
+      {
+        documentTab = document.getElementById('iqmsTab');
+      }
+
+  if (response[1] != "empty")
+  {
+     
+      var header = response[0].toString().split(",");
+      var result = response[1].toString().split(",");
+    
+      
+      for(var j=0;j< header.length;j++)
+      {
+       dataTable.addColumn("string",header[j].toString());
+      }
+     
+      var rarray1 = new Array();
+      for(var l=1;l<response.length;l++)
+      {
+      
+         var rarray = new Array();
+         for(var k=0;k < response[l].length;k++)
+         {
+           rarray.push(response[l][k].toString());
+         }
+         rarray1.push(rarray);
+      }
+   
+      for (var i = 0; i < rarray1.length -2; i++)
+     {
+        
+        dataTable.addRow(rarray1[i]);
+        if(i == 0)
+        {
+           var iBrk = document.createElement('br');
+           iBrk.id = 'breakDiv'+i;
+           documentTab.appendChild(iBrk);
+           
+           var titleDiv = document.createElement('div');
+           titleDiv.id = 'titleDiv'+i;
+           titleDiv.innerHTML = title.bold();
+           
+           documentTab.appendChild(titleDiv);
+           
+           var iBrk = document.createElement('br');
+           iBrk.id = 'breakDiv0'+i;
+           documentTab.appendChild(iBrk);
+           
+           var iDiv = document.createElement('div');
+           iDiv.id = 'dynamicDiv'+i;
+           documentTab.appendChild(iDiv);
+        }
+        var table = new google.visualization.Table(iDiv);
+        table.draw(dataTable);
+  
+     }
+  
+  }
+  else
+  {
+   
+     var title = response[response.length-1];
+     var iBrk = document.createElement('br');
+     iBrk.id = 'breakDiv'
+     documentTab.appendChild(iBrk);
+     
+      var titleDiv = document.createElement('div');
+      titleDiv.id = 'titleDiv';
+      titleDiv.innerHTML = title;
+      documentTab.appendChild(titleDiv);
+           
+      var iBrk = document.createElement('br');
+      iBrk.id = 'breakDiv0';
+      documentTab.appendChild(iBrk);
+           
+     var emptyDiv = document.createElement('div');
+     emptyDiv.id = 'emptyDiv';
+     documentTab.appendChild(emptyDiv);
+     emptyDiv.innerHTML = "No records found.";
+  }
+  
+}
+
+var batchName = "";
+var filterName = "";
+var filterArray = new Array();
+var batchArray  = new Array();
+
+function allChangeInADB(value)
+{
+   
+  filterArray = [];
+  for (var i = 0; i < value.options.length; i++) {
+   if(value.options[i].selected){
+      filterArray.push(value.options[i].value);
+   }
+  }
+   var divList = document.getElementById("productivityTab");
+         while (divList.hasChildNodes()) {   
+         divList.removeChild(divList.firstChild);
+   }
+  
+ google.script.run.withSuccessHandler(createProductivityTablefilter).parseXml(ddate,edate);
+}
+
+function batchChangeInADB(value)
+{
+
+  batchArray = [];
+  for (var i = 0; i < value.options.length; i++) {
+   if(value.options[i].selected){
+      batchArray.push(value.options[i].value);
+   }
+   
+  }
+  
+   var divList = document.getElementById("productivityTab");
+         while (divList.hasChildNodes()) {   
+         divList.removeChild(divList.firstChild);
+         }
+      
+ google.script.run.withSuccessHandler(createProductivityTablefilter).parseXml(ddate,edate);
+ 
+}
+
+function createProductivityTablefilter(res)
+{
+
+   for(var x=0;x < res.length;x++)
+  {
+    var response = res[x];
+   
+    var dataTable1 = new google.visualization.DataTable();
+    var dataTable2 = new google.visualization.DataTable();
+    var dataTable3 = new google.visualization.DataTable();
+    var dataTable4 = new google.visualization.DataTable();
+    var cssClassNames = {'headerRow': 'orange-background bold-font',
+                        'tableRow': '',
+                        'oddTableRow': 'beige-background',
+                        'lastTableRow':'blue-background',
+                        'hoverTableRow': '',
+                        'headerCell': 'gold-border',
+                        'tableCell': '',
+                        'rowNumberCell': 'underline-blue-font'};
+    var options = {'cssClassNames':cssClassNames,allowHtml:true,width: '75%'};
+ 
+  if (response[1] != "empty")
+  {
+      var title   = response[response.length-2];
+      var legends = response[response.length-1];
+
+      var titleDiv = document.createElement('div');
+      titleDiv.id = 'titleDiv';
+      document.getElementById('productivityTab').appendChild(titleDiv);
+      titleDiv.innerHTML = title.fontsize(2).bold();
+    
+      var legendsDiv = document.createElement('div');
+      legendsDiv.id = "legendsDiv";
+      document.getElementById('productivityTab').appendChild(legendsDiv);
+      var str = "";
+      str = "<table border='1'>";
+      for(var m = 0;m < legends.length;m++)
+      { 
+        if(m%2 == 0){str = str +"<tr>"}
+        str = str +"<td>&nbsp;<label>"+legends[m].toString().fontsize(1)+"</label></td>"; 
+        if(m%2 == 1){str = str +"</tr>"}
+      }
+      str = str +"</table>"
+     
+      legendsDiv.innerHTML = str;
+      var header = response[0].toString().split(",");
+    
+      for(var j=0;j< header.length;j++)
+      {
+       dataTable1.addColumn("string",header[j].toString().fontsize(1));
+       dataTable2.addColumn("string",header[j].toString().fontsize(1));
+       dataTable3.addColumn("string",header[j].toString().fontsize(1));
+       dataTable4.addColumn("string",header[j].toString().fontsize(1));
+      }
+   
+      var rarray1 = new Array();
+
+      for(var l=1;l<response.length-2;l++)
+      {
+     
+         var rarray = new Array();
+        
+         for(var k=0;k < response[l].length;k++)
+         {
+         
+           rarray.push(response[l][k].toString());
+         }
+         
+         rarray1.push(rarray);
+      }
+     
+    
+     for (var i = 0; i <= rarray1.length -1; i++)
+     {
+      
+       dataTable1.addRow(rarray1[i]);
+       dataTable2.addRow(rarray1[i]);
+       dataTable3.addRow(rarray1[i]);
+       dataTable4.addRow(rarray1[i]);
+  
+        if(i == rarray1.length-1)
+       {   
+       
+             var disArr = distinctDynamicArr.filter(function(x) { return batchArray.indexOf(x) < 0 })
+             var arrAll = new Array();
+             var arrIncludeAll = new Array();
+
+             for(var k=0;k<batchArray.length;k++)
+             {
+       
+                var exp = batchArray[k];
+               
+                if((distinctDynamicArr.indexOf(exp) < 0) && (exp != ""))
+                {
+                
+                var tokens = exp.split(CONCATE_STR);
+                exp = tokens[0].trim();
+               
+                arrAll.push(exp);
+                arrIncludeAll.push(exp);
+              
+                var index = $.inArray(exp, disArr);
+                
+                if(index != -1)
+                {
+                  disArr.splice(index,1);
+                }
+
+               }
+
+            }
+            
+             var arr1 = new Array();  
+             arr1 = sumAllRows(dataTable1,dataTable1.getNumberOfRows(),dataTable1.getNumberOfColumns(),distinctDynamicArr);
+             dataTable1.addRows(arr1);
+             arr1 = sumSortedRows1(dataTable1,dataTable1.getNumberOfRows(),dataTable1.getNumberOfColumns(),batchArray,GRAND_TOTAL,distinctDynamicArr);
+             dataTable1.addRow(arr1);
+             var arr2 = new Array();   
+             arr2 = sumAllRows(dataTable2,dataTable2.getNumberOfRows(),dataTable2.getNumberOfColumns(),distinctDynamicArr);
+             dataTable2.addRows(arr2);
+             arr2 = sumSortedRows1(dataTable2,dataTable2.getNumberOfRows(),dataTable2.getNumberOfColumns(),batchArray,GRAND_TOTAL,distinctDynamicArr);
+             dataTable2.addRow(arr2);
+             var arr3 = new Array();   
+             arr3 = sumSortedRows1(dataTable3,dataTable3.getNumberOfRows(),dataTable3.getNumberOfColumns(),batchArray,GRAND_TOTAL,distinctDynamicArr);
+             dataTable3.addRow(arr3);
+             var arr4 = new Array();   
+             arr4 = sumAllRows(dataTable4,dataTable4.getNumberOfRows(),dataTable4.getNumberOfColumns(),distinctDynamicArr);
+             dataTable4.addRows(arr4);
+             arr4 = sumSortedRows1(dataTable4,dataTable4.getNumberOfRows(),dataTable4.getNumberOfColumns(),batchArray,GRAND_TOTAL,distinctDynamicArr);
+             dataTable4.addRow(arr4);
+ 
+       }
+        
+        if(i == 0)
+        {
+           var iBrk = document.createElement('br');
+           iBrk.id = 'breakDiv'+i+x;
+           document.getElementById('productivityTab').appendChild(iBrk);
+           
+           var div1 = document.createElement('div');
+           div1.id = 'pwreport'+i+x;
+           var div2 = document.createElement('div');
+           div2.id = 'fwreport'+i+x;
+           var div3 = document.createElement('div');
+           div3.id = 'dreport'+i+x;
+           var div4 = document.createElement('div');
+           div4.id = 'bwreport'+i+x;
+           
+           var brk1 = document.createElement('br');
+           brk1.id = 'pwbrk'+i+x;
+           var brk2 = document.createElement('br');
+           brk2.id = 'fwbrk'+i+x;
+           var brk3 = document.createElement('br');
+           brk3.id = 'dbrk'+i+x;
+           var brk4 = document.createElement('br');
+           brk4.id = 'bwbrk'+i+x;
+           
+           var tit1 = document.createElement('div');
+           tit1.id = 'pwtitle'+i+x;
+           var tit2 = document.createElement('div');
+           tit2.id = 'fwtitle'+i+x;
+           var tit3 = document.createElement('div');
+           tit3.id = 'dtitle'+i+x;
+           var tit4 = document.createElement('div');
+           tit4.id = 'bwtitle'+i+x;
+           
+           
+           
+           tit1.innerHTML = "<p><font size='2'><b>Programme Wise Report</b></font></p>";
+           tit2.innerHTML = "<p><font size='2'><b>Flag Wise Report</font></b></p>";
+           tit3.innerHTML = "<p><font size='2'><b>Batch Wise Report</font></b></p>";
+           tit4.innerHTML = "<p><font size='2'><b>Daily/ Weekly/ Monthly Reports</b></font></p>";
+          
+           
+           document.getElementById('productivityTab').appendChild(tit1);
+           document.getElementById('productivityTab').appendChild(div1);
+           document.getElementById('productivityTab').appendChild(brk1);
+           
+           document.getElementById('productivityTab').appendChild(tit2);
+           document.getElementById('productivityTab').appendChild(div2);
+           document.getElementById('productivityTab').appendChild(brk2);
+           
+           document.getElementById('productivityTab').appendChild(tit4);
+           document.getElementById('productivityTab').appendChild(div4);
+           document.getElementById('productivityTab').appendChild(brk4);
+           
+           document.getElementById('productivityTab').appendChild(tit3);
+           document.getElementById('productivityTab').appendChild(div3);
+           document.getElementById('productivityTab').appendChild(brk3);
+        
+           
+        }
+        
+        var table1 = new google.visualization.Table(div1);
+        var table2 = new google.visualization.Table(div2);
+        var table3 = new google.visualization.Table(div3);
+        var table4 = new google.visualization.Table(div4);
+        
+      
+      
+        var view1 = new google.visualization.DataView(dataTable1);
+        var view2 = new google.visualization.DataView(dataTable2);
+        var view3 = new google.visualization.DataView(dataTable3);
+        var view4 = new google.visualization.DataView(dataTable4);
+      
+    if(i == rarray1.length-1)
+    {
+          
+     if((filterArray.length > 0) && (filterArray.indexOf('All') < 0))
+     {
+            $("#"+tit1.id).hide();
+            $("#"+tit2.id).hide();
+            $("#"+tit3.id).hide();
+            $("#"+tit4.id).hide();
+         
+        for(var a=0;a<filterArray.length;a++)
+        {
+        
+            filterName = filterArray[a];
+            if(filterName == PROGRAM_WISE)
+            {
+               $("#"+tit1.id).show();
+               view1.setColumns([0,2,3,4,37,35,36]);
+              
+               if(batchArray.length > 0 && batchArray.indexOf('') < 0)
+               {
+                    
+                     var hiddenArray1 = hideGrandRow(dataTable1,dataTable1.getNumberOfRows(),disArr,batchArray,arrAll);
+                     view1.hideRows(hiddenArray1);
+                     var harr1 = hideSpecifiedRow(dataTable1,dataTable1.getNumberOfRows(),arrIncludeAll);
+                     view1.hideRows(harr1);
+               }
+               else
+               {
+
+                  view1.hideRows(0,rarray1.length - 1);
+            
+               }
+ 
+               table1.draw(view1,options);
+        
+            }
+            else if(filterName == FLAG_WISE)
+            {
+                  $("#"+tit2.id).show();
+                  view2.setColumns([0,2,5,7,13,15,17,19,21,23,25,27,29,31,33,35]);
+                  if(batchArray.length > 0 && batchArray.indexOf('') < 0)
+                  {
+               
+                     var hiddenArray2 = hideGrandRow(dataTable2,dataTable2.getNumberOfRows(),disArr,batchArray,arrAll);
+                     view2.hideRows(hiddenArray2);
+                     var harr2 = hideSpecifiedRow(dataTable2,dataTable2.getNumberOfRows(),arrIncludeAll);
+                     view2.hideRows(harr2);
+                  }
+                 else
+                 {
+
+                 
+                    view2.hideRows(0,rarray1.length - 1);
+                 }
+ 
+                  
+                  table2.draw(view2,options);
+            }
+            else if(filterName == BATCH_WISE)
+            {
+                  $("#"+tit3.id).show();
+                  view3.setColumns([0,1,2,3,4,37,35,36]);
+                 
+                     var hiddenArray3 = hideRow(dataTable3,dataTable3.getNumberOfRows(),disArr,batchArray,arrAll);
+              
+                  table3.draw(view3,options);
+            }
+            else if(filterName == DAILY)
+            {
+                  $("#"+tit4.id).show();
+                  view4.setColumns([0,2,37,35,36]);
+                  if(batchArray.length > 0 && batchArray.indexOf('') < 0)
+                  {
+                    
+                    
+                     var hiddenArray4 = hideGrandRow(dataTable4,dataTable4.getNumberOfRows(),disArr,batchArray,arrAll);
+                     view4.hideRows(hiddenArray4);
+                     var harr4 = hideSpecifiedRow(dataTable4,dataTable4.getNumberOfRows(),arrIncludeAll);
+                     view4.hideRows(harr4);
+                    
+                  }
+                  else
+                 {
+                  view4.hideRows(0,rarray1.length - 1);
+            
+                  }
+                  
+                 table4.draw(view4,options);
+            }
+          
+          }
+        }
+      else
+        {  
+            $("#"+tit1.id).show();
+            $("#"+tit2.id).show();
+            $("#"+tit3.id).show();
+            $("#"+tit4.id).show();
+            
+            view1.setColumns([0,2,3,4,37,35,36]);
+            view2.setColumns([0,2,5,7,13,15,17,19,21,23,25,27,29,31,33,35]);
+            view3.setColumns([0,1,2,3,4,37,35,36]);
+            view4.setColumns([0,2,37,35,36]);
+            
+           if(batchArray.length > 0 && batchArray.indexOf('') < 0)
+            {
+                         var hiddenArray1 = hideGrandRow(dataTable1,dataTable1.getNumberOfRows(),disArr,batchArray,arrAll);
+                         view1.hideRows(hiddenArray1);
+                         var harr1 = hideSpecifiedRow(dataTable1,dataTable1.getNumberOfRows(),arrIncludeAll);
+                         view1.hideRows(harr1);
+                         var hiddenArray2 = hideGrandRow(dataTable2,dataTable2.getNumberOfRows(),disArr,batchArray,arrAll);
+                         view2.hideRows(hiddenArray2);
+                         var harr2 = hideSpecifiedRow(dataTable2,dataTable2.getNumberOfRows(),arrIncludeAll);
+                         view2.hideRows(harr2);
+                         var hiddenArray4 = hideGrandRow(dataTable4,dataTable4.getNumberOfRows(),disArr,batchArray,arrAll);
+                         view4.hideRows(hiddenArray4);
+                         var harr4 = hideSpecifiedRow(dataTable4,dataTable4.getNumberOfRows(),arrIncludeAll);
+                         view4.hideRows(harr4);
+                         var hiddenArray3 = hideRow(dataTable3,dataTable3.getNumberOfRows(),disArr,batchArray,arrAll);
+                         view3.hideRows(hiddenArray3);
+
+            }
+            else
+            {
+
+                  view1.hideRows(0,rarray1.length - 1);
+                  view2.hideRows(0,rarray1.length - 1);
+                  view4.hideRows(0,rarray1.length - 1);
+            
+            }
+ 
+           table1.draw(view1,options);
+           table2.draw(view2,options);
+           table4.draw(view4,options);
+           table3.draw(view3,options);
+               
+          
+        }
+        
+       }
+        
+     }
+
+  }
+  else
+  {
+     var iBrk = document.createElement('br');
+     iBrk.id = 'breakDiv'
+     document.getElementById('productivityTab').appendChild(iBrk);
+     var emptyDiv = document.createElement('div');
+     emptyDiv.id = 'emptyDiv';
+     document.getElementById('productivityTab').appendChild(emptyDiv);
+     emptyDiv.innerHTML = "No records found.";
+  }
+  }
+}
+
+ function hideRow(dataTable,rowNum,distDynArr)
+ {
+   var hiddenArray = [];
+   for(var i=0;i< rowNum;i++)
+   {
+    var valueOfselct = dataTable.getValue(i,0);
+    
+     for(var j=0;j<distDynArr.length;j++)
+     {
+         var regexp = new RegExp(distDynArr[j]+"_[0-9]");
+         if(regexp.test(valueOfselct))
+         {
+             hiddenArray.push(i);
+         }
+         
+         var regexp1 = new RegExp(distDynArr[j]);
+         if(regexp1.test(valueOfselct))
+         {
+             hiddenArray.push(i);
+         }
+     }
+    }
+   
+    return hiddenArray;
+ }
+ 
+function hideGrandRow(dataTable,rowNum,distDynArr,batchArr,arr)
+{
+
+   var hiddenArray = [];
+   for(var i=0;i< rowNum;i++)
+   {
+     var valueOfselct = dataTable.getValue(i,0);
+     for(var j=0;j<distDynArr.length;j++)
+     {
+         var regexp1 = new RegExp(distDynArr[j]);
+         if(regexp1.test(valueOfselct))
+         {
+           hiddenArray.push(i);
+         }
+     }
+    
+   
+      for(var l=0;l<batchArr.length;l++)
+      {
+         var exp2 = batchArr[l];
+         if(arr.length < 0)
+         {
+          var regexp = new RegExp(exp2+"_[0-9]");
+  
+               if(regexp.test(valueOfselct))
+               {
+                  hiddenArray.push(i);
+               }
+               
+               break;
+        
+         }
+          if((distinctDynamicArr.indexOf(exp2) < 0) && (exp2 != ""))
+          {
+              var tokens = exp2.split(CONCATE_STR);
+              exp2 = tokens[0].trim();
+              if(arr.indexOf(exp2) < 0)
+              {
+               var regexp = new RegExp(exp2+"_[0-9]");
+  
+               if(regexp.test(valueOfselct))
+               {
+                  hiddenArray.push(i);
+               }
+             
+             }
+          }
+          else
+          {
+     
+             if(arr.indexOf(exp2) < 0)
+             {
+               var regexp = new RegExp(exp2+"_[0-9]");
+  
+             if(regexp.test(valueOfselct))
+             {
+                hiddenArray.push(i);
+             }
+             
+             }
+          
+          }
+      
+     }
+    
+    }
+
+    return hiddenArray;
+
+}
+
+function hideSpecifiedRow(dataTable,rowNum,arr)
+{
+   var hiddenArray = [];
+   for(var i=0;i< rowNum;i++)
+   {
+     var valueOfselct = dataTable.getValue(i,0);
+     for(var j=0;j<arr.length;j++)
+     {
+        
+         if(arr[j] == valueOfselct)
+         {
+           hiddenArray.push(i);
+         }
+     }
+  }
+  return hiddenArray;
+}
+
+ function sumSortedRows(dataTable,rowNum,coulmnNum,bname,cname,distnctArr)
+ {
+ 
+  if(distnctArr.length == 0)
+  {
+    distnctArr = distinctDynamicArr;
+  
+  }
+   var tCids = 0;	
+   var pCids = 0;	
+   var qaAudited = 0;
+   var perAudited = 0;
+   var perDV	= 0;	
+   var dvCids = 0;		
+   var perDV	= 0;	
+   var duCids = 0;	
+   var perDU = 0;		
+   var cncCids	= 0;	
+   var perCNC = 0;		
+   var crcCids	= 0;	
+   var perCRC	= 0;	
+   var racnCids = 0;	
+   var perRACN = 0;		
+   var crCids = 0;	
+   var perCR = 0;		
+   var ccclCids = 0;		
+   var perCCCL = 0;		
+   var recCids = 0;	
+   var perREC = 0;		
+   var rcrcgCids = 0;		
+   var perRCRCG = 0;		
+   var inboCids = 0;		
+   var perINB = 0;		
+   var icCids = 0;		
+   var perIC = 0;		
+   var iurlCids = 0;		
+   var perIU = 0;		
+   var maCids = 0;		
+   var perMA = 0;		
+   var lpaCids	= 0;	
+   var perLPA = 0;	
+   var plaCids	= 0;	
+   var perPLA = 0;	
+   var uploadedInGRM = 0;
+   var labels = 0;
+   var externalUnits = 0;
+  
+      for(var i=0;i< rowNum;i++)
+      {
+      
+      for(var j=0;j< coulmnNum;j++)
+      {
+       
+        var valueOfselct = dataTable.getValue(i,0);
+      
+          if((distnctArr.indexOf(bname) < 0) && (bname != ""))
+          {
+            var tokens = bname.split(CONCATE_STR);
+            bname = tokens[0].trim();
+          }
+        
+            
+        var regexp = new RegExp(bname+"_[0-9]");
+        
+        if (regexp.test(valueOfselct))
+        {
+       
+            if(j == 0)
+            {
+         
+             try{
+         
+            tCids = tCids+parseInt(dataTable.getValue(i,1));
+            pCids = pCids + parseInt(dataTable.getValue(i,2));
+            qaAudited = qaAudited + parseInt(dataTable.getValue(i,3));
+            dvCids = dvCids + parseInt(dataTable.getValue(i,5));
+            duCids = duCids + parseInt(dataTable.getValue(i,7));
+            cncCids = cncCids + parseInt(dataTable.getValue(i,9));
+            crcCids = crcCids + parseInt(dataTable.getValue(i,11));
+            racnCids = racnCids + parseInt(dataTable.getValue(i,13));
+            crCids = crCids + parseInt(dataTable.getValue(i,15));
+            ccclCids = ccclCids + parseInt(dataTable.getValue(i,17));
+            recCids = recCids + parseInt(dataTable.getValue(i,19));
+            rcrcgCids = rcrcgCids + parseInt(dataTable.getValue(i,21));
+            inboCids = inboCids + parseInt(dataTable.getValue(i,23));
+            icCids = icCids + parseInt(dataTable.getValue(i,25));
+            iurlCids = iurlCids + parseInt(dataTable.getValue(i,27));
+            maCids = maCids + parseInt(dataTable.getValue(i,29));
+            lpaCids = lpaCids + parseInt(dataTable.getValue(i,31));
+            plaCids = plaCids + parseInt(dataTable.getValue(i,33));
+            uploadedInGRM = uploadedInGRM + parseInt(dataTable.getValue(i,35));
+            labels = labels + parseInt(dataTable.getValue(i,36));
+            externalUnits = externalUnits + parseInt(dataTable.getValue(i,37)); 
+            }catch(e){alert(e);}
+            
+           }
+        }
+       
+       try{
+        perAudited = ((qaAudited/pCids)*100).toFixed(2);
+        perAudited = ((perAudited == 'NaN')?'0.00':perAudited);
+        perDV  = ((dvCids/pCids)*100).toFixed(2);
+        perDV = ((perDV == 'NaN')?'0.00':perDV);
+        perDU  = ((duCids/pCids)*100).toFixed(2);
+        perDU = ((perDU == 'NaN')?0:perDU);
+        perCNC  = ((cncCids/pCids)*100).toFixed(2);
+        perCNC = ((perCNC == 'NaN')?0:perCNC);
+        perCRC  = ((crcCids/pCids)*100).toFixed(2);
+        perCRC = ((perCRC == 'NaN')?0:perCRC);
+        perRACN  = ((racnCids/pCids)*100).toFixed(2);
+        perRACN = ((perRACN == 'NaN')?0:perRACN);
+        perCR  = ((crCids/pCids)*100).toFixed(2);
+        perCR = ((perCR == 'NaN')?0:perCR);
+        perCCCL  = ((ccclCids/pCids)*100).toFixed(2);
+        perCCCL = ((perCCCL == 'NaN')?0:perCCCL);
+        perREC  = ((recCids/pCids)*100).toFixed(2);
+        perREC = ((perREC == 'NaN')?0:perREC);
+        perRCRCG  = ((rcrcgCids/pCids)*100).toFixed(2);
+        perRCRCG = ((perRCRCG == 'NaN')?0:perRCRCG);
+        perINB  = ((inboCids/pCids)*100).toFixed(2);
+        perINB = ((perINB == 'NaN')?0:perINB);
+        perIC  = ((icCids/pCids)*100).toFixed(2);
+        perIC = ((perIC == 'NaN')?0:perIC);
+        perIU  = ((iurlCids/pCids)*100).toFixed(2);
+        perIU = ((perIU == 'NaN')?0:perIU);
+        perMA  = ((maCids/pCids)*100).toFixed(2);
+        perMA = ((perMA == 'NaN')?0:perMA);
+        perLPA  = ((lpaCids/pCids)*100).toFixed(2);
+        perLPA = ((perLPA == 'NaN')?0:perLPA);
+        perPLA  = ((plaCids/pCids)*100).toFixed(2);
+        perPLA = ((perPLA == 'NaN')?0:perPLA);
+         
+        var totalArray = new Array();
+        totalArray.push(((cname == GRAND_TOTAL)?cname.bold():cname));
+        totalArray.push((cname == GRAND_TOTAL)?tCids.toString().bold():tCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?pCids.toString().bold():pCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?qaAudited.toString().bold():qaAudited.toString()); 
+        totalArray.push((cname == GRAND_TOTAL)?perAudited.toString().bold()+"%":perAudited.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?dvCids.toString().bold():dvCids.toString()); 
+        totalArray.push((cname == GRAND_TOTAL)?perDV.toString().bold()+"%":perDV.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?duCids.toString().bold():duCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perDU.toString().bold()+"%":perDU.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?cncCids.toString().bold():cncCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perCNC.toString().bold()+"%":perCNC.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?crcCids.toString().bold():crcCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perCRC.toString().bold()+"%":perCRC.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?racnCids.toString().bold():racnCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perRACN.toString().bold()+"%":perRACN.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?crCids.toString().bold():crCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perCR.toString().bold()+"%":perCR.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?ccclCids.toString().bold():ccclCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perCCCL.toString().bold()+"%":perCCCL.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?recCids.toString().bold():recCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perREC.toString().bold()+"%":perREC.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?rcrcgCids.toString().bold():rcrcgCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perRCRCG.toString().bold()+"%":perRCRCG.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?inboCids.toString().bold():inboCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perINB.toString().bold()+"%":perINB.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?icCids.toString().bold():icCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perIC.toString().bold()+"%":perIC.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?iurlCids.toString().bold():iurlCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perIU.toString().bold()+"%":perIU.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?maCids.toString().bold():maCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perMA.toString().bold()+"%":perMA.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?lpaCids.toString().bold():lpaCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perLPA.toString().bold()+"%":perLPA.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?plaCids.toString().bold():plaCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perPLA.toString().bold()+"%":perPLA.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?uploadedInGRM.toString().bold():uploadedInGRM.toString());
+        totalArray.push((cname == GRAND_TOTAL)?labels.toString().bold():labels.toString());
+        totalArray.push((cname == GRAND_TOTAL)?externalUnits.toString().bold():externalUnits.toString());
+        }catch(e1){alert(e1);}
+     
+      }
+    }
+
+    return totalArray;
+ }
+ 
+function sumAllRows(dataTable,rowNum,coulmnNum,distDynamicArr)
+{
+  
+   var arrAll1 = new Array();
+   for(var i = 0;i< distDynamicArr.length;i++)
+   {
+     var arr1 = new Array();
+     arr1 = sumSortedRows(dataTable,rowNum,coulmnNum,distDynamicArr[i],distDynamicArr[i],distDynamicArr[i]);
+     arrAll1.push(arr1);
+   }
+   return arrAll1;
+}
+
+function getDistinctPrograms(returnDistPrograms)
+{
+    
+    var response = returnDistPrograms;
+    distinctDynamicArr = returnDistPrograms;
+    for (var i = 0; i < response.length; i++)
+    {
+      var option1 = document.createElement("option");
+      var option2 = document.createElement("option");
+      option1.text = response[i];
+      option1.value = response[i];
+      option2.text = response[i]+CONCATE_STR;
+      option2.value = response[i]+CONCATE_STR;
+      var select = document.getElementById("batchSelectionId");
+      select.appendChild(option1);
+      select.appendChild(option2);
+    }
+ }
+ 
+ 
+ function sumSortedRows1(dataTable,rowNum,coulmnNum,bArray,cname,distnctArr)
+ {
+
+   if(bArray.length == 0)
+   {
+     bArray = distnctArr;
+   }
+   var tCids = 0;	
+   var pCids = 0;	
+   var qaAudited = 0;
+   var perAudited = 0;
+   var perDV	= 0;	
+   var dvCids = 0;		
+   var perDV	= 0;	
+   var duCids = 0;	
+   var perDU = 0;		
+   var cncCids	= 0;	
+   var perCNC = 0;		
+   var crcCids	= 0;	
+   var perCRC	= 0;	
+   var racnCids = 0;	
+   var perRACN = 0;		
+   var crCids = 0;	
+   var perCR = 0;		
+   var ccclCids = 0;		
+   var perCCCL = 0;		
+   var recCids = 0;	
+   var perREC = 0;		
+   var rcrcgCids = 0;		
+   var perRCRCG = 0;		
+   var inboCids = 0;		
+   var perINB = 0;		
+   var icCids = 0;		
+   var perIC = 0;		
+   var iurlCids = 0;		
+   var perIU = 0;		
+   var maCids = 0;		
+   var perMA = 0;		
+   var lpaCids	= 0;	
+   var perLPA = 0;	
+   var plaCids	= 0;	
+   var perPLA = 0;	
+   var uploadedInGRM = 0;
+   var labels = 0;
+   var externalUnits = 0;
+   var bname;
+   
+   var grantCountArray = new Array();
+   for(var k=0;k < bArray.length;k++)
+   {
+       bname = bArray[k];
+       
+       if((distnctArr.indexOf(bname) < 0) && (bname != ""))
+       {
+            var tokens = bname.split(CONCATE_STR);
+            bname = tokens[0].trim();
+       }
+       if(grantCountArray.indexOf(bname) < 0)
+       {
+         grantCountArray.push(bname);
+       }
+   }
+  
+      for(var i=0;i< rowNum;i++)
+      {
+      
+      for(var j=0;j< coulmnNum;j++)
+      {
+       
+        var valueOfselct = dataTable.getValue(i,0);
+     
+        for(var k=0;k < grantCountArray.length;k++)
+        {
+            
+             bname = grantCountArray[k];
+      
+          if((distnctArr.indexOf(bname) < 0) && (bname != ""))
+          {
+            var tokens = bname.split(CONCATE_STR);
+            
+            bname = tokens[0].trim();
+          }
+        
+            
+        var regexp = new RegExp(bname+"_[0-9]");
+        
+        if (regexp.test(valueOfselct))
+        {
+       
+            if(j == 0)
+            {
+         
+             try{
+         
+            tCids = tCids+parseInt(dataTable.getValue(i,1));
+            pCids = pCids + parseInt(dataTable.getValue(i,2));
+            qaAudited = qaAudited + parseInt(dataTable.getValue(i,3));
+            dvCids = dvCids + parseInt(dataTable.getValue(i,5));
+            duCids = duCids + parseInt(dataTable.getValue(i,7));
+            cncCids = cncCids + parseInt(dataTable.getValue(i,9));
+            crcCids = crcCids + parseInt(dataTable.getValue(i,11));
+            racnCids = racnCids + parseInt(dataTable.getValue(i,13));
+            crCids = crCids + parseInt(dataTable.getValue(i,15));
+            ccclCids = ccclCids + parseInt(dataTable.getValue(i,17));
+            recCids = recCids + parseInt(dataTable.getValue(i,19));
+            rcrcgCids = rcrcgCids + parseInt(dataTable.getValue(i,21));
+            inboCids = inboCids + parseInt(dataTable.getValue(i,23));
+            icCids = icCids + parseInt(dataTable.getValue(i,25));
+            iurlCids = iurlCids + parseInt(dataTable.getValue(i,27));
+            maCids = maCids + parseInt(dataTable.getValue(i,29));
+            lpaCids = lpaCids + parseInt(dataTable.getValue(i,31));
+            plaCids = plaCids + parseInt(dataTable.getValue(i,33));
+            uploadedInGRM = uploadedInGRM + parseInt(dataTable.getValue(i,35));
+            labels = labels + parseInt(dataTable.getValue(i,36));
+            externalUnits = externalUnits + parseInt(dataTable.getValue(i,37)); 
+            }catch(e){alert(e);}
+            
+           }
+        }
+       
+       try{
+        perAudited = ((qaAudited/pCids)*100).toFixed(2);
+        perAudited = ((perAudited == 'NaN')?'0.00':perAudited);
+        perDV  = ((dvCids/pCids)*100).toFixed(2);
+        perDV = ((perDV == 'NaN')?'0.00':perDV);
+        perDU  = ((duCids/pCids)*100).toFixed(2);
+        perDU = ((perDU == 'NaN')?0:perDU);
+        perCNC  = ((cncCids/pCids)*100).toFixed(2);
+        perCNC = ((perCNC == 'NaN')?0:perCNC);
+        perCRC  = ((crcCids/pCids)*100).toFixed(2);
+        perCRC = ((perCRC == 'NaN')?0:perCRC);
+        perRACN  = ((racnCids/pCids)*100).toFixed(2);
+        perRACN = ((perRACN == 'NaN')?0:perRACN);
+        perCR  = ((crCids/pCids)*100).toFixed(2);
+        perCR = ((perCR == 'NaN')?0:perCR);
+        perCCCL  = ((ccclCids/pCids)*100).toFixed(2);
+        perCCCL = ((perCCCL == 'NaN')?0:perCCCL);
+        perREC  = ((recCids/pCids)*100).toFixed(2);
+        perREC = ((perREC == 'NaN')?0:perREC);
+        perRCRCG  = ((rcrcgCids/pCids)*100).toFixed(2);
+        perRCRCG = ((perRCRCG == 'NaN')?0:perRCRCG);
+        perINB  = ((inboCids/pCids)*100).toFixed(2);
+        perINB = ((perINB == 'NaN')?0:perINB);
+        perIC  = ((icCids/pCids)*100).toFixed(2);
+        perIC = ((perIC == 'NaN')?0:perIC);
+        perIU  = ((iurlCids/pCids)*100).toFixed(2);
+        perIU = ((perIU == 'NaN')?0:perIU);
+        perMA  = ((maCids/pCids)*100).toFixed(2);
+        perMA = ((perMA == 'NaN')?0:perMA);
+        perLPA  = ((lpaCids/pCids)*100).toFixed(2);
+        perLPA = ((perLPA == 'NaN')?0:perLPA);
+        perPLA  = ((plaCids/pCids)*100).toFixed(2);
+        perPLA = ((perPLA == 'NaN')?0:perPLA);
+         
+        var totalArray = new Array();
+       
+        totalArray.push(((cname == GRAND_TOTAL)?cname.bold():cname));
+        totalArray.push((cname == GRAND_TOTAL)?tCids.toString().bold():tCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?pCids.toString().bold():pCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?qaAudited.toString().bold():qaAudited.toString()); 
+        totalArray.push((cname == GRAND_TOTAL)?perAudited.toString().bold()+"%":perAudited.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?dvCids.toString().bold():dvCids.toString()); 
+        totalArray.push((cname == GRAND_TOTAL)?perDV.toString().bold()+"%":perDV.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?duCids.toString().bold():duCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perDU.toString().bold()+"%":perDU.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?cncCids.toString().bold():cncCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perCNC.toString().bold()+"%":perCNC.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?crcCids.toString().bold():crcCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perCRC.toString().bold()+"%":perCRC.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?racnCids.toString().bold():racnCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perRACN.toString().bold()+"%":perRACN.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?crCids.toString().bold():crCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perCR.toString().bold()+"%":perCR.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?ccclCids.toString().bold():ccclCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perCCCL.toString().bold()+"%":perCCCL.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?recCids.toString().bold():recCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perREC.toString().bold()+"%":perREC.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?rcrcgCids.toString().bold():rcrcgCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perRCRCG.toString().bold()+"%":perRCRCG.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?inboCids.toString().bold():inboCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perINB.toString().bold()+"%":perINB.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?icCids.toString().bold():icCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perIC.toString().bold()+"%":perIC.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?iurlCids.toString().bold():iurlCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perIU.toString().bold()+"%":perIU.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?maCids.toString().bold():maCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perMA.toString().bold()+"%":perMA.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?lpaCids.toString().bold():lpaCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perLPA.toString().bold()+"%":perLPA.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?plaCids.toString().bold():plaCids.toString());
+        totalArray.push((cname == GRAND_TOTAL)?perPLA.toString().bold()+"%":perPLA.toString()+"%");
+        totalArray.push((cname == GRAND_TOTAL)?uploadedInGRM.toString().bold():uploadedInGRM.toString());
+        totalArray.push((cname == GRAND_TOTAL)?labels.toString().bold():labels.toString());
+        totalArray.push((cname == GRAND_TOTAL)?externalUnits.toString().bold():externalUnits.toString());
+        }catch(e1){alert(e1);}
+        
+      }
+      }
+    }
+
+    return totalArray;
+ }
+ 
+ function getIQMSReport()
+ {
+    var tname = "iqmsTab";
+    var divList = document.getElementById("iqmsTab");
+    
+    while (divList.hasChildNodes()) {   
+      divList.removeChild(divList.firstChild);
+    }
+   var dashboardTablesArr = new Array();
+ 
+   dashboardTablesArr[0] = "IQMS Category Report: AA*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'AA';";
+   dashboardTablesArr[1] = "IQMS Category Report: ETO*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'ETO';";
+   dashboardTablesArr[2] = "IQMS Category Report: HV*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'HV';";
+   dashboardTablesArr[3] = "IQMS Category Report: HV+*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'HVplus';";
+   dashboardTablesArr[4] = "IQMS Category Report: NBS*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'NBS';";
+   dashboardTablesArr[5] = "IQMS Category Report: SSU*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'SSU';";
+   dashboardTablesArr[6] = "IQMS Category Report: UMM*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'UMM';";
+   dashboardTablesArr[7] = "IQMS Category Report: FRD*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'FRD';";
+   dashboardTablesArr[8] = "IQMS Category Report: NOM*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'NOM';";
+   dashboardTablesArr[9] = "IQMS Category Report: GT*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'GT';";
+   dashboardTablesArr[10] = "IQMS Category Report: CS*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'CS';";
+   dashboardTablesArr[11] = "IQMS Category Report: TMA*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'TMA';";
+   dashboardTablesArr[12] = "IQMS Category Report: HV++*~*select CONCAT_WS(' ', u.firstname, u.lastname) as Agent, iq.ldap, iq.program, category, sample from iqms iq left join users u on iq.ldap = u.ldap where u.role = 'Agent' and program = 'HVplusPlus';";
+
+    for(var i=0;i<dashboardTablesArr.length;i++)
+    { 
+      google.script.run.withSuccessHandler(createDynamicTable).getDynamicQueryResult(dashboardTablesArr[i],'normalQuery',tname);
+    
+    }
+ }
+</script>

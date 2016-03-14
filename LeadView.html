@@ -1,0 +1,350 @@
+<?!= include('LeadConstants'); ?>
+<?!= include('IncludeScripts'); ?>
+<?!= include('LeadScripts'); ?>
+<?!= include('LeadStyles'); ?>
+<html>
+<body class="bodyid" onload="loadqualityScoreQA()">
+	<div id="tabs">
+		<ul>
+			<li id="tab4"><a href="#tabs-4">Dashboard</a></li>
+			<li id="tab1"><a href="#tabs-1">Upload</a></li>
+			<li id="tab2"><a href="#tabs-2">Add/Modify</a></li>
+			<li id="tab3"><a href="#tabs-3">Report</a></li>
+            <li id="tab5"><a href="#tabs-5">GREP</a></li>
+            <li id="tab7"><a href="#tabs-7">Productivity</a></li>
+            <li id="tab5"><a href="#tabs-6">IQMS</a></li>
+		</ul>
+		<div id="tabs-1" style="display: none">
+			<form>
+				<table class="" id="buttonId">
+					<tr>
+						<td><input type="button" value="Upload:" id="uploadId" class="leadsubmit" onclick="" /></td>
+					</tr>
+				</table>
+				<br />
+				<div id="firstDiv">
+					<input id="ProgramId" name="status" type="text" value="Program:" class="leadlabel1" readonly /> <select id="ProgramSelection"
+						style="width: 250px; font-size: 14px;" name="ProgramSelection">
+						<option value="select">Please Select</option>
+					</select>
+				</div>
+				<br />
+				<table>
+					<tr>
+						<td><input id="trixPath" name="status" type="text" value="Input Trix Id:" class="leadlabel1" readonly /></td>
+						<td><input id="trixPathId" name="trixPathId" value="" style="font-size: 14px" class="trix" /></td>
+					</tr>
+				</table>
+				<br /> <br />
+				<table>
+					<tr>
+						<td class="leadsubmitButton"><input type="button" value="Submit" id="submitId" class="leadsubmit" style="width: 100px"
+							onclick="getDataFromSheet()" /></td>
+					</tr>
+				</table>
+				<br />
+				<div id="uplodedTicketProgressId" style="width: 350px" class="leadsubmit"></div>
+				<br />
+				<div id="showUploadMessage" style="width: 350px" class="leadsubmit"></div>
+				<br /> <a href="" target="_blank" id="failedTrixURLID">Failed to upload few records. Please click Here to refer the log</a> <br /> <br />
+			</form>
+		</div>
+		<div id="tabs-2" style="display: none">
+			<form name="form">
+				<table class="" id="buttonId">
+					<tr>
+						<td><input type="button" value="Add / Modify User Details:" id="uploadId" class="leadsubmit" onclick="" /></td>
+					</tr>
+				</table>
+				<br />
+				<table>
+					<tr>
+						<td><input id="ldap" name="ldap" type="text" value="LDAP:" class="leadlabel" readonly /></td>
+						<td><input id="ldapId" name="ldapId" value="" class="trix" onblur="modifyUser()" onkeydown="resetUserDetails()" /></td>
+						<td><input type="text" value="Search" id="searchId" class="leadsubmit" style="width: 75px" onclick="modifyUser()"  readonly/></td>
+					</tr>
+					<tr>
+						<td><input id="first" name="first" type="text" value="First Name:" class="leadlabel" readonly /></td>
+						<td><input id="firstId" name="firstId" value="" class="trix" /></td>
+					</tr>
+					<tr>
+						<td><input id="last" name="last" type="text" value="Last Name:" class="leadlabel" readonly /></td>
+						<td><input id="lastId" name="lastId" value="" class="trix" /></td>
+					</tr>
+					<tr>
+						<td><input id="roleId" name="role" type="text" value="Role:" class="leadlabel" readonly /></td>
+						<td><select id="roleSelection" style="width: 150px; font-size: 14px; width: 250px;" name="roleSelection">
+								<option value="select">Please Select</option>
+								<option value="Lead">Lead</option>
+								<option value="Agent">Agent</option>
+								<option value="QA">QA</option>
+						</select></td>
+					</tr>
+					<tr>
+						<td><input id="userTypeId" name="userTypeId" type="text" value="UserType:" class="leadlabel" readonly /></td>
+						<td><select id="userTypeIdSelection" style="width: 150px; font-size: 14px; width: 250px;" name="userTypeIdSelection">
+								<option value="select">Please Select</option>
+								<option value="HYD">HYD</option>
+								<option value="Googler">Googler</option>
+                                <option value="MTV">MTV</option>
+						</select></td>
+					</tr>
+					<tr></tr>
+					<tr></tr>
+					<tr></tr>
+					<tr></tr>
+					<tr>
+						<td><input id="programsAllowed" name="programsAllowed" type="text" value="Programs Allowed:" class="leadlabel" readonly /></td>
+						<td><select id="programsAllowedSelection" style="height: 230px; font-size: 14px; width: 250px;" name="programsAllowedSelection" multiple>
+								<option value="select">Please Select</option>
+						</select></td>
+					</tr>
+				</table>
+				<br />
+				<table>
+					<tr>
+						<td class="leadsubmitButton"><input type="button" value="Submit" id="addsubmitId" class="leadsubmit" style="width: 100px"
+							onclick="addUser()" /></td>
+						<td class="leadsubmitButton"><input type="button" value="Reset" id="resetId" class="leadsubmit" style="width: 100px" onclick="resetUser()" /></td>
+					</tr>
+				</table>
+				<br />
+				<div id="insertupdateMessage" style="width: 350px" class="leadsubmit">User Details Saved Successfully....</div>
+			</form>
+		</div>
+		<div id="tabs-3" style="display: none">
+			<div id="date" style="padding-left: 12cm; font-size: 14px;"><br><b>Date: </b><?= getDate(); ?></div>
+			<div id="tickets" style="padding-left: 12cm; font-size: 14px;"></div>
+			<!--<table id="dynamicQuery">
+			<tr><h5>Dynamic Query:</h5>
+			<td><input id="dynamicId" name="dynamic" type="text" value="" style="font:bold;font-size:14px;width:300px; background-color:#DCDCDC;" /></td>
+			<td class="leadsubmitButton"><input type="button" value="Get_Results" id="dynamicId" class="leadsubmit" style="width:120px" onclick="dynamicResults()" /></td></tr>
+			</table>-->
+			<br /> <br />
+			<table id="progId">
+				<tr>
+					<td><input id="Program" name="status" type="text" value="Program:"
+						style="font: bold; font-size: 14px; width: 100px; background-color: #DCDCDC;" readonly /></td>
+					<td style="width: 0px"></td>
+					<td class=""><select id="ProgramSelection_dynamic" style="font-size: 14px;" name="ProgramSelection"
+						onchange="displayStatusAtTop(this.value)">
+							<option value="select">please select</option>
+					</select></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td><input id="ldap" name="status" type="text" value="LDAP:" style="font: bold; font-size: 14px; width: 100px; background-color: #DCDCDC;"
+						readonly /></td>
+					<td class=""><select id="ldapsId" style="font-size: 14px;" name="ldapsId1" onchange="">
+							<option value="select">please select</option>
+					</select></td>
+				</tr>
+			</table>
+			<br />
+			<table>
+				<tr>
+					<td><input type="button" value="Filters:" id="filterId" class="leadsubmit" onclick="" /></td>
+				</tr>
+				<tr>
+				</tr>
+				<tr></tr>
+				<tr>
+					<td><input id="datepicker12" type="text" value="" style="font-size: 14px; width: 100px" /></td>
+					<td></td>
+					<td></td>
+					<td><input id="Hour" name="Hour" type="text" value="Hour:" class="leadlabel1" readonly /></td>
+					<td></td>
+					<td><select id="hourAssignment" style="width: 150px; font-size: 14px; width: 250px;" name="hourAssignment">
+							<option value="select">Please Select</option>
+							<option value="00:00 - 01:00">00:00 - 01:00</option>
+							<option value="01:00 - 02:00">01:00 - 02:00</option>
+							<option value="02:00 - 03:00">02:00 - 03:00</option>
+							<option value="03:00 - 04:00">03:00 - 04:00</option>
+							<option value="04:00 - 05:00">04:00 - 05:00</option>
+							<option value="05:00 - 06:00">05:00 - 06:00</option>
+							<option value="06:00 - 07:00">06:00 - 07:00</option>
+							<option value="07:00 - 08:00">07:00 - 08:00</option>
+							<option value="08:00 - 09:00">08:00 - 09:00</option>
+							<option value="09:00 - 10:00">09:00 - 10:00</option>
+							<option value="10:00 - 11:00">10:00 - 11:00</option>
+							<option value="11:00 - 12:00">11:00 - 12:00</option>
+							<option value="12:00 - 13:00">12:00 - 13:00</option>
+							<option value="13:00 - 14:00">13:00 - 14:00</option>
+							<option value="14:00 - 15:00">14:00 - 15:00</option>
+							<option value="15:00 - 16:00">15:00 - 16:00</option>
+							<option value="16:00 - 17:00">16:00 - 17:00</option>
+							<option value="17:00 - 18:00">17:00 - 18:00</option>
+							<option value="18:00 - 19:00">18:00 - 19:00</option>
+							<option value="19:00 - 20:00">19:00 - 20:00</option>
+							<option value="20:00 - 21:00">20:00 - 21:00</option>
+							<option value="21:00 - 22:00">21:00 - 22:00</option>
+							<option value="22:00 - 23:00">22:00 - 23:00</option>
+							<option value="23:00 - 00:00">23:00 - 00:00</option>
+					</select></td>
+				</tr>
+				<tr></tr>
+				<tr></tr>
+				<tr>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td><input id="statusAssign" name="statusAssign" type="text" value="Status:" class="leadlabel1" readonly /></td>
+					<td></td>
+					<td><select id="statusAssignment" style="width: 150px; font-size: 14px; width: 250px;" name="statusAssignment" onchange="hideButtons()">
+							<option value="select">Please Select</option>
+							<option value="Idle">Idle</option>
+							<option value="unassigned">unassigned</option>
+							<option value="wip_agent">wip_agent</option>
+							<option value="clarification_agent">clarification_agent</option>
+							<option value="qa">qa</option>
+							<option value="wip_qa">wip_qa</option>
+							<option value="clarification_qa">clarification_qa</option>
+							<option value="completed">completed</option>
+                            <option value="wip_agent_rework">wip_agent_rework</option>
+                            <option value="wip_qa_rework">wip_qa_rework</option>
+							<!--<option value="done">done</option>-->
+					</select></td>
+				</tr>
+			</table>
+			<br /> <br />
+<!--			<div id="datatablevalue"></div>
+			<br />
+			<div id="datatableMessageId" style="font: bold; color: red; font-size: 14px; width: 400px; background-color: #DCDCDC;"></div>
+			<br /> <a href="" target="_blank" id="sheetURLID">Spreadsheet Exported Link</a>-->
+			<table>
+				<tr>
+					<td class="leadsubmitButton"><input type="button" value="Display Report" id="retreiveId" class="leadsubmit" style="width: 200px; align: left"
+						onclick="getResults('fromSub')" /></td>
+					<td class="leadsubmitButton"><input type="button" value="Get Count" id="countId" class="leadsubmit" style="width: 130px"
+						onclick="getResults('fromCount')" /></td>
+					<td class="leadsubmitButton"><input type="button" value="Export" id="ExportButtonId" class="leadsubmit" style="width: 100px"
+						onclick="getResults('fromExport')" /></td>
+					<td class="leadsubmitButton"><input type="button" value="Release" id="releaseId" class="leadsubmit" style="width: 100px"
+						onclick="changeToRelease()" /></td>
+					<td class="leadsubmitButton"><input type="button" value="Reassign" id="reassignId" class="leadsubmit" style="width: 100px"
+						onclick="changeToWIP()" /></td>
+					<td><select id="reassignUserId" style="width: 150px; font-size: 14px; width: 250px;" name="">
+							<option value="select">Please Select</option>
+					</select></td>
+                    <td class="leadsubmitButton"><input type="button" value="Reassign Submit" id="reassignSubmitId" class="leadsubmit" style="width: 200px"
+						onclick="reassignToUser()" /></td>
+				</tr>
+			</table>
+            <br /> <br />
+            <div id="datatableMessageId" style="font: bold; color: red; font-size: 14px; width: 400px; background-color: #DCDCDC;"></div>
+            <br/>
+            <a href="" target="_blank" id="sheetURLID">Spreadsheet Exported Link</a>
+            <br /> 
+			<div id="datatablevalue"></div>
+			<br />
+		</div>
+		<div id="tabs-4" style="display: none">
+
+			<input id="ProgramId" name="status" type="text" value="Program:" style="font: bold; font-size: 14px; width: 150px; background-color: #DCDCDC;" />
+			<select id="ProgramSelectionPie" style="width: 150px" name="ProgramSelection" onchange="programChangedBar(this.value)">
+				<option value="select">All Program</option>
+			</select>
+           <div id="reportrange" class="pull-right" style="background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc">					
+             <i class="glyphicon glyphicon-calendar fa fa-calendar"></i>		
+              <span></span> <b class="caret"></b>		
+           </div>		
+           <br/>		
+           <br/>		
+           <div><input type="button" id="togId"/></div>		
+           <br/>		
+           		
+			<div id="barchart" style="width:1365px; height:500px;"></div>
+			<div id="external_quality_score" style="display: none">
+            <input id="score" name="score" type="text" value="External Quality Score:"
+				style="font: bold; font-size: 14px; width: 180px; background-color: #DCDCDC;" /> <select id="externalQualityScoreSelection" style="width: 150px"
+				name="externalQualityScoreSelection" onchange="qualityScore(this.value)">
+				<option value="QA_wise" selected="selected">QAAgentwise</option>
+				<option value="program_wise">programWise</option>
+				<option value="day_wise">daywise</option>
+			</select> <input id="month" name="month" type="text" value="Select the month :"
+				style="font: bold; font-size: 14px; width: 150px; background-color: #DCDCDC; display: none" /> <select id="monthSelection" style="width: 150px"
+				name="monthSelection" style="display:none;" onchange="getmonthData(this.value)">
+				<option value="select">please select</option>
+				<option value="1">January</option>
+				<option value="2">February</option>
+				<option value="3">March</option>
+				<option value="4">April</option>
+				<option value="5">May</option>
+				<option value="6">June</option>
+				<option value="7">July</option>
+				<option value="8">August</option>
+				<option value="9">September</option>
+				<option value="10">October</option>
+				<option value="11">November</option>
+				<option value="12">December</option>
+			</select> <label id="norecords" style="display: none"><b>NO RECORDS FOUND</b></label></div>
+			<div id="scorechart" style="width: 1365px; height: 500px; display: none;"></div>
+			<input id="ProgramId" name="status" type="text" value="Program/Flag:" style="font: bold; font-size: 14px; width: 150px; background-color: #DCDCDC;" /> 
+            <select id="ProgramFlagBar" style="width: 150px" name="ProgramSelection" onchange="dashboardProgramChanged(this.value)">
+                <option value="program wise">program wise</option>
+                <option value="flag wise">flag wise</option>
+			</select>
+            &nbsp;&nbsp;
+            <input id="ProgramsId" type="text" value="Programs:" style="font: bold; font-size: 14px; width: 150px; background-color: #DCDCDC;" /> 
+            &nbsp;&nbsp;<select id="ProgramSelectionBar" style="width: 150px" onchange="dashboardProgramChanged('programs')">
+                   <option value="select">All Programs</option>
+                </select>
+            <div id="daterange" class="pull-right" style="background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc">		
+             <i class="glyphicon glyphicon-calendar fa fa-calendar"></i>		
+              <span></span> <b class="caret"></b>		
+           </div>		
+           <br/>		
+           <br/>		
+           <div><input type="button" id="togPieId"/></div>		
+           <br/>
+			<div id="piechart" style="width: 1365px; height: 450px;"></div>
+		</div>
+        <div id="tabs-6" style="display: none">
+			<form>
+				<br />
+				<input type="button" value="IQMS Categorize - Run Everyday" id="submitId" class="leadsubmit" style="width: 300px"
+							onclick="iqmsCategorize()" />
+               &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+               <input  type="button" value="Get IQMS Category Report" id="iqmsId" class="leadsubmit" style="width: 300px" onclick=" getIQMSReport()" />
+             </form>
+             <br/>
+             <div id="iqmsTab">
+             </div>
+		</div>
+		<div id="tabs-5" style="display: none" >
+         <br />
+		   <input type="button" value="Execute GREP" id="dynamicId" class="leadsubmit" style="width: 300px" onclick="getDynamicTables()" />
+          <br/>
+          <br/>
+          <div id="dynamicTab">
+          </div>
+        </div>
+        <div id="tabs-7" style="display: none" >
+         <div>
+         <input type="button" value="Productivity Details:" class="leadsubmit"/>
+            &nbsp;&nbsp;
+              <select id="filterId" style="width: 150px" onchange="allChangeInADB(this)" multiple>
+              <option value="All">All</option>
+               <option value="ProgramWise">ProgramWise</option>
+				<option value="FlagWise">FlagWise</option>
+				<option value="BatchWise">BatchWise</option>
+				<option value="Daily">Daily</option>
+              </select>
+              &nbsp;&nbsp;
+               <select id="batchSelectionId" style="width: 150px" onchange="batchChangeInADB(this)" multiple>
+               <option value="">All Batch</option>
+              </select>
+              <div id="prodDateRange" class="pull-right" style="background: #fff; cursor: pointer;width:30p%">
+               <i class="glyphicon glyphicon-calendar fa fa-calendar"></i>
+                <span></span> <b class="caret"></b>
+               </div>
+          <br/>
+          <div id="productivityTab">
+          </div>
+        </div>
+        </div>
+	</div>
+</body>
+</html>

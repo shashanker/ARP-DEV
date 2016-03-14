@@ -1,0 +1,2837 @@
+<script type="text/javascript">
+     var ELIGIBLE_FOR_QA = 100; // The percentage level of eligible tickets for QA after Agent completed
+     var TOTAL_COUNT_OF_TICKETS = '20'; // The everyday target to Agent/QA
+     var USER_ROLE_AGENT = 'Agent';
+     var USER_ROLE_QA = 'QA';
+     var USER_ROLE_LEAD = 'Lead';
+    var WIP_AGENTREWORK = 'wip_agent_rework';
+    var WIP_QAREWORK = 'wip_qa_rework';
+     
+     var data;
+     var CID;
+     var userName = '';
+     var programChangedGlobal = '';
+     var userRole = '';
+     var programsAllowed = '';
+     var aprCount = 0;
+     var rejCount = 0;
+     var aproveCount = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+     
+        var website_from_ics_cmt ;
+	    var current_company_rollup_cmt;	
+		var correct_company_cmt;		
+		var correct_company_id_cmt;		
+		var mcc_id_cmt;		
+		var agency_name_cmt;		
+		var require_escalation_cmt;		
+		var parent_on_npl_cmt;	
+		var flag_reason_cmt;		
+		var parent_company_cmt;	
+		var parent_company_in_grm_cmt;	
+		var child_company_cmt;		
+		var child_company_in_grm_cmt;	
+		var division_company_cmt;		
+		var division_company_in_grm_cmt;		
+		var childrdivision_company_id_cmt;		
+		var action_on_mapping_cmt;	
+		var merge_exists_cmt;		
+		var merge_status_cmt;	
+		var source_id_cmt;	
+		var destination_id_cmt;
+	    var merge_flag_cmt;		
+		var remarks_qa;	
+        var mysqlDateTime;
+  $(document).ready(function()
+  {
+       $('#errorId').hide();
+       $('#errorId').html("");
+       mysqlDateTime = getMySQLDate();
+  });
+  
+  function getRole()
+  {
+       google.script.run.withSuccessHandler(userDetails).getUserRole();
+  } 
+  
+  function userDetails(user) 
+  {
+        userName =  user[0];
+        userRole = user[1];
+        programsAllowed = user[2];
+        if (userRole == USER_ROLE_AGENT )
+        {
+            $('#program').show();
+            $('#date').show();
+            $('#tickets').show();
+            $('#buttonId').show();
+            $('td:nth-child(5)').hide();
+            $('td:nth-child(6)').hide();
+            $('td.reject', tableObj).closest('tr').hide();
+        }
+        else if (userRole == USER_ROLE_QA)
+        {
+            $('#program').show();
+            $('#date').show();
+            $('#tickets').show();
+            $('#buttonId').show();
+        }
+        
+        google.script.run.withSuccessHandler(displayTickets).getUserTicketCount(userName,userRole); 
+   }
+   function hideToggle()
+   {
+       document.getElementById("submitId").disabled = true;
+       document.getElementById("pauseId").disabled = true;
+       $('#formId').hide();
+   }
+   function displayTickets(response) 
+   {
+       document.getElementById("tickets").innerHTML= "<b>Cases (ALL): </b>" + response;
+       google.script.run.withSuccessHandler(getProgramData).getProgramBatch(userName, programsAllowed); 
+   }
+   function updateTickets(response)
+   {
+    document.getElementById("tickets").innerHTML= "<b>Cases: </b>" + response + " / 80";
+   }
+   function programChanged(valueOfselct)
+   {
+         programChangedGlobal =  valueOfselct;
+         
+         var regexp = new RegExp("(AA|UMM|NBS|SSU|HV|HVplus|HVplusPlus|FRD|NOM|CS|TMA|MMSone|MMStwo|MA|GT|XP|DA|SBS)_[0-9]+");
+         var regexpGT = new RegExp("GreenTea_[0-9]+");
+         if (regexp.test(valueOfselct))
+         {
+           modifyAgentView();
+           hideFieldsForGT(false);
+         }
+         else if (regexpGT.test(valueOfselct))
+         {
+           modifyAgentView();
+           hideFieldsForGT(true);
+         }
+         else
+         {
+           hideFieldsForGT(false);
+           
+           $('#tr_merge_status').hide();
+           $('#tr_merge_exists').hide();
+         
+           $('#tr_company_type').show();
+           $('#tr_pod').show();
+           $('#tr_proposed_company_name').show();
+           $('#tr_opportunity_name').show();
+           $('#tr_website').show();
+           $('#tr_correct_company_name').show();
+           $('#tr_mcc_id').show();
+           $('#tr_agency_name').show();
+           $('#tr_require_escalation').show();
+
+           $('#input_correct_company_id').val("Correct Company ID:");
+           $('#input_parent_on_npl').val("Parent on NPL?");
+           
+           $("#lowestParentCompId").html("");
+           $("#lowestParentCompId").append($("<option></option>").val("select").html("please select"));
+           $("#lowestParentCompId").append($("<option></option>").val("[1] - Created").html("[1] - Created"));
+           $("#lowestParentCompId").append($("<option></option>").val("[2] - Existing").html("[2] - Existing"));
+           $("#lowestParentCompId").append($("<option></option>").val("[3] - Not Applicable").html("[3] - Not Applicable"));
+
+           $("#lowestChildCompId").html("");
+           $("#lowestChildCompId").append($("<option></option>").val("select").html("please select"));
+           $("#lowestChildCompId").append($("<option></option>").val("[1] - Created").html("[1] - Created"));
+           $("#lowestChildCompId").append($("<option></option>").val("[2] - Existing").html("[2] - Existing"));
+
+           $("#lowestDivCompId").html("");
+           $("#lowestDivCompId").append($("<option></option>").val("select").html("please select"));
+           $("#lowestDivCompId").append($("<option></option>").val("[1] - Created").html("[1] - Created"));
+           $("#lowestDivCompId").append($("<option></option>").val("[2] - Existing").html("[2] - Existing"));
+           $("#lowestDivCompId").append($("<option></option>").val("[3] - Not Applicable").html("[3] - Not Applicable"));
+
+           $("#mergeSelection").html("");
+           $("#mergeSelection").append($("<option></option>").val("select").html("please select"));
+           $("#mergeSelection").append($("<option></option>").val("[1] - Merge").html("[1] - Merge"));
+           $("#mergeSelection").append($("<option></option>").val("[2] - Flag").html("[2] - Flag"));
+           $("#mergeSelection").append($("<option></option>").val("[3] - Not Applicable").html("[3] - Not Applicable"));
+
+         }
+   }
+   function getProgramData(response)
+   {
+       for(var i=0;i<response.length;i++)
+       {
+          var option = document.createElement("option");
+          option.text = response[i];
+          option.value = response[i];
+          var select = document.getElementById("ProgramSelection");
+          select.appendChild(option);
+       } 
+    }
+    function getTicketData()
+    {
+         $("#parentCompId").css('border-color','default');
+         var progSel =  document.getElementById("ProgramSelection").value;
+         if(progSel == 'select')
+         {
+                 alert('Please select Program');
+         }
+         else
+         {
+                // to show Cases (ALL) count
+                document.getElementById("getnextId").disabled = true;
+                google.script.run.withSuccessHandler(updateTickets).updatedTicketCount(userName,userRole,mysqlDateTime);
+                if(userRole == USER_ROLE_AGENT)
+                {
+                google.script.run.withSuccessHandler(WipTicketDetails).getWipCount(programChangedGlobal,userName,userRole);
+                }
+                else
+                {
+                google.script.run.withSuccessHandler(WipTicketDetails).getWipCount(programChangedGlobal,userName,userRole);
+                
+                }
+         }
+     }     
+    function unassignedTicketsAvailability(response)
+    {
+         if(response == 0)
+         {
+             alert("There are no tickets available for the selected Program");
+         }
+         else
+         {
+             google.script.run.withSuccessHandler(ticketInformation).getDataFromDb(programChangedGlobal,userRole); 
+         }
+    
+    }
+    function statusofEligibilityForQa(response)
+    {
+         if(response == 0)
+         {
+             alert("Eligible records for QA are Completed");
+         }
+         else
+         {
+             google.script.run.withSuccessHandler(qaTicketsAvailability).unassignedTicketCount(programChangedGlobal,userRole);
+         }
+    }
+    function qaTicketsAvailability(response)
+    {
+         if(response == 0)
+         {
+               alert("There are no tickets available for the selected Program");
+    
+          }
+          else
+          {
+          google.script.run.withSuccessHandler(ticketInformation).getDataFromDb(programChangedGlobal,userRole); 
+              
+          }
+    }
+    function WipTicketDetails(response)
+    {
+        if(response > 0)
+        {
+           
+            detailsOfPendingWipTicket(programChangedGlobal,userRole);
+        }
+        else
+        {
+          
+           if(userRole == USER_ROLE_QA)
+           {
+//            google.script.run.withSuccessHandler(statusofEligibilityForQa).eligibleForQaStatus(programChangedGlobal,ELIGIBLE_FOR_QA,userRole);
+            google.script.run.withSuccessHandler(ticketInformation).callSP_IQMSGetRecord(programChangedGlobal,userName);
+           }
+           else if(userRole == USER_ROLE_LEAD)
+           {
+             getDataforLead();
+           }
+           else 
+           {
+           
+           google.script.run.withSuccessHandler(unassignedTicketsAvailability).unassignedTicketCount(programChangedGlobal,userRole);
+           
+           
+           }
+           
+        }
+    
+    }
+    
+   /*
+   First fetch: ticketInformation(response)
+   WIP fetch: pendingTicketInformation(response)
+   Table SFDC: (column: website) response[8]
+   Table Agent: (column: website_from_ics) response[18]
+   */
+    function ticketInformation(response)
+    {
+       //alert('fresh'+response);
+       if (response == -1)
+        {
+          alert("Please try again!");
+           document.getElementById("getnextId").disabled = false;
+          return;
+        }
+        else if (response == 0)
+        {
+          alert("Eligible records for QA are Completed");
+           document.getElementById("getnextId").disabled = false;
+          return;
+        }
+        else
+        {
+          //document.getElementById("getnextId").disabled = true;
+          document.getElementById("submitId").disabled = false;
+          document.getElementById("pauseId").disabled = false;
+          resetFieldData();
+          $('#formId').show();
+          var rowId = response[0];
+          document.getElementById("comTypeId").value = response[3];
+          document.getElementById("podId").value = response[4];
+          document.getElementById("cId").value = response[5];
+          document.getElementById("propcompanyId").value = response[6];
+          document.getElementById("oppId").value = response[7];
+          //alert('response[8]:'+response[8]);
+          document.getElementById("websiteId").value = replaceTildeAscii(response[8]);
+          
+        
+          var ldapAgent = response[10].toString();
+          var innerHtml = "&nbsp;&nbsp;<input type='text' value='LDAP:' style='font: bold; font-size: 14px; width: 100px; background-color: #DCDCDC;'readonly />"
+                          +"&nbsp;<input type='text' id='agentName' value='"+ldapAgent+"' readonly />";
+          
+       
+          if(userRole == USER_ROLE_QA )
+          {
+            if(response[14] == "null")
+            {
+                google.script.run.userAssigning(response[13].toString(),response[0],userRole);
+            }
+       
+             $('#agentId').html(innerHtml);
+             document.getElementById("websiteIcsId").value = replaceTildeAscii(response[18]);
+             $('#websiteIcsId').attr('readonly', true);
+             document.getElementById("rollUpId").value = decodeURIComponent(response[19].toString());
+             $('#rollUpId').attr('readonly', true);
+             document.getElementById("correctCompNameId").value = response[20];
+             $('#correctCompNameId').attr('readonly', true);
+             document.getElementById("corectCompId").value = response[21];
+             $('#corectCompId').attr('readonly', true);
+             document.getElementById("mccId").value = response[22];
+             $('#mccId').attr('readonly', true);
+             document.getElementById("agencyId").value = response[23];
+             $('#agencyId').attr('readonly', true);
+             document.getElementById("escalationSelection").value = response[24];
+             $('#escalationSelection').attr('disabled', true);
+             document.getElementById("ParentSelection").value = response[25];
+             $('#ParentSelection').attr('disabled', true);
+             document.getElementById("flagSelection").value = response[26];
+             $('#flagSelection').attr('disabled', true);
+             document.getElementById("parentCompId").value = response[27];
+             $('#parentCompId').attr('readonly', true);
+             
+             if (response[28] == "[1] - Yes" || response[28] == "[2] - No" || response[28] == "[3] - Not Applicable"  
+                 || response[28] == "[4] - Need Editing" || response[28] == "select")
+             {
+               document.getElementById("lowestParentCompId").value = response[28];
+               $('#lowestParentCompId').attr('disabled', true);
+               $('#lowestParentCompId').show();
+               $('#lowestParentCompIdEdited').hide();
+             }
+             else
+             {
+               // it means, response[28] has user entered value
+               $('#lowestParentCompId').val('[4] - Need Editing');
+               $('#lowestParentCompId').hide();
+               $('#lowestParentCompIdEdited').val(response[28]);
+               $('#lowestParentCompIdEdited').show();
+               $('#lowestParentCompIdEdited').attr('readonly', true);
+             }
+             
+             document.getElementById("childCompId").value = response[29];
+             $('#childCompId').attr('readonly', true);
+             
+             if (response[30] == "[1] - Yes" || response[30] == "[2] - No" || response[30] == "[3] - Not Applicable"
+                 || response[30] == "[4] - Need Editing" || response[30] == "select")
+             {
+               document.getElementById("lowestChildCompId").value = response[30];
+               $('#lowestChildCompId').attr('disabled', true);
+               $('#lowestChildCompId').show();
+               $('#lowestChildCompIdEdited').hide();
+             }
+             else
+             {
+               // it means, response[30] has user entered value
+               $('#lowestChildCompId').val('[4] - Need Editing');
+               $('#lowestChildCompId').hide();
+               $('#lowestChildCompIdEdited').val(response[30]);
+               $('#lowestChildCompIdEdited').show();
+               $('#lowestChildCompIdEdited').attr('readonly', true);
+             }
+             
+             document.getElementById("divCompId").value = response[31];
+             $('#divCompId').attr('readonly', true);
+             
+             if (response[32] == "[1] - Yes" || response[32] == "[2] - No" || response[32] == "[3] - Not Applicable"
+                  || response[32] == "[4] - Need Editing"  || response[32] == "select")
+             {
+               document.getElementById("lowestDivCompId").value = response[32];
+               $('#lowestDivCompId').attr('disabled', true);
+               $('#lowestDivCompId').show();
+               $('#lowestDivCompIdEdited').hide();
+             }
+             else
+             {
+               // it means, response[32] has user entered value
+               $('#lowestDivCompId').val('[4] - Need Editing');
+               $('#lowestDivCompId').hide();
+               $('#lowestDivCompIdEdited').val(response[32]);
+               $('#lowestDivCompIdEdited').show();
+               $('#lowestDivCompIdEdited').attr('readonly', true);
+             }
+             
+             document.getElementById("lowestCompId").value=response[33];
+             $('#lowestCompId').attr('readonly', true);
+             document.getElementById("actionId").value = response[34];
+             $('#actionId').attr('disabled', true);
+             document.getElementById("select_merge_exists").value = response[35];
+             $('#select_merge_exists').attr('disabled', true);
+             document.getElementById("select_merge_status").value = response[36];
+             $('#select_merge_status').attr('disabled', true);
+             document.getElementById("sourceId").value = response[37];
+             $('#sourceId').attr('readonly', true);
+             document.getElementById("destId").value = response[38];
+             $('#destId').attr('readonly', true);
+             document.getElementById("mergeSelection").value = response[39];
+             $('#mergeSelection').attr('disabled', true);
+             document.getElementById("clarSelection").value = response[40];
+             $('#clarSelection').attr('disabled', true);
+             document.getElementById("remarksId").value = response[41];
+             $('#remarksId').attr('readonly', true);
+         
+          } else{resetEditData();}
+          
+          if(response[7] == null)
+           {
+             
+             if(response[21] != null)
+             {
+             document.getElementById("corectCompId").value = response[21];
+             }
+             else if(response[21] != null)
+             {
+               document.getElementById("corectCompId").value = response[21];
+             }
+             else if(response[21] != null)
+             {
+               document.getElementById("corectCompId").value = response[21];
+             }
+             else
+             {
+               document.getElementById("corectCompId").value = response[21];
+             }
+           }
+           else if(response[7] == 'none')
+           {
+             if(response[21] != null)
+             {
+             document.getElementById("corectCompId").value = response[21];
+             }
+             else if(response[21] != null)
+             {
+               document.getElementById("corectCompId").value = response[21];
+             }
+             else if(response[21] != null)
+             {
+               document.getElementById("corectCompId").value = response[21];
+             }
+             else
+             {
+               document.getElementById("corectCompId").value = response[21];
+             }
+           }
+           else
+           {
+             document.getElementById("corectCompId").value = response[7];
+           }
+           
+           if(response[3] == null || response[3] == 'none')
+           {
+             //document.getElementById("parentCompId").value = '';
+             
+             if(response[27] != null)
+             {
+             document.getElementById("parentCompId").value = response[27];
+             }
+             else if(response[27] != 'none')
+             {
+               document.getElementById("parentCompId").value = response[27];
+             }
+             else if(response[27] != '')
+             {
+               document.getElementById("parentCompId").value = response[27];
+             }
+             else
+             {
+               document.getElementById("parentCompId").value = '';
+             }
+             
+           }
+           else
+           {
+             document.getElementById("parentCompId").value = response[3];
+           }
+
+           if(response[4] == null || response[4] == 'none')
+           {
+             //document.getElementById("lowestCompId").value = '';
+             
+             if(response[33] != null)
+             {
+             document.getElementById("lowestCompId").value = response[33];
+             }
+             else if(response[33] != 'none')
+             {
+               document.getElementById("lowestCompId").value = response[33];
+             }
+             else if(response[33] != '')
+             {
+               document.getElementById("lowestCompId").value = response[33];
+             }
+             else
+             {
+               document.getElementById("lowestCompId").value = '';
+             }
+           }
+           else
+           {
+             document.getElementById("lowestCompId").value = response[4];
+           }
+
+           if(response[6] == null)
+           {
+             //document.getElementById("rollUpId").value = '';
+             if(response[19] != null)
+             {
+             document.getElementById("rollUpId").value = response[19];
+             }
+             else if(response[19] != 'none')
+             {
+              document.getElementById("rollUpId").value = response[19];
+             }
+             else if(response[19] != '')
+             {
+             document.getElementById("rollUpId").value = response[19];
+             }
+             else
+             {
+              document.getElementById("rollUpId").value = '';
+             
+             }
+             
+           }
+           else if(response[6] == 'none')
+           {
+             //document.getElementById("rollUpId").value = '';
+             if(response[19] != null)
+             {
+             document.getElementById("rollUpId").value = response[19];
+             }
+             else if(response[19] != 'none')
+             {
+              document.getElementById("rollUpId").value = response[19];
+             }
+             else if(response[19] != '')
+             {
+             document.getElementById("rollUpId").value = response[19];
+             }
+             else
+             {
+              document.getElementById("rollUpId").value = '';
+             
+             }
+           }
+           else
+           {
+             document.getElementById("rollUpId").value = response[6];
+           }
+           
+           if(response[8] == null)
+           {
+             //document.getElementById("websiteIcsId").value = '';
+             if (response[18] != null)
+             {
+                    document.getElementById("websiteIcsId").value = response[18];
+             }
+             else if(response[18] != 'none')
+             {
+               document.getElementById("websiteIcsId").value = response[18];
+             }
+             else if(response[18] != '')
+             {
+               document.getElementById("websiteIcsId").value = response[18];
+             }
+             else
+             {
+              document.getElementById("websiteIcsId").value = '';
+             }
+           }
+           else if(response[8] == 'none')
+           {
+             //document.getElementById("websiteIcsId").value = '';
+              if (response[18] != null)
+             {
+                    document.getElementById("websiteIcsId").value = response[18];
+             }
+             else if(response[18] != 'none')
+             {
+               document.getElementById("websiteIcsId").value = response[18];
+             }
+             else if(response[18] != '')
+             {
+               document.getElementById("websiteIcsId").value = response[18];
+             }
+             else
+             {
+              document.getElementById("websiteIcsId").value = '';
+             }
+           }
+           else if(response[8] == '')
+           {
+             //document.getElementById("websiteIcsId").value = '';
+              if (response[18] != null)
+             {
+                    document.getElementById("websiteIcsId").value = response[18];
+             }
+             else if(response[18] != 'none')
+             {
+               document.getElementById("websiteIcsId").value = response[18];
+             }
+             else if(response[18] != '')
+             {
+               document.getElementById("websiteIcsId").value = response[18];
+             }
+             else
+             {
+              document.getElementById("websiteIcsId").value = '';
+             }
+           }
+           else if(response[18] == "null")
+           {
+              if(response[8].indexOf(';') > -1)
+             {
+               var links = response[8].trim().split(';');
+               document.getElementById("websiteIcsIds").value = response[8];
+               $("#websiteIcsId").hide();
+               var link = '';
+               for(var a=0; a<links.length; a++)
+               {
+                 if(links[a].indexOf("http://") > -1)
+                 {
+                    
+                   link += "<a href="+replaceTildeAscii(links[a])+" target='_blank'>"+replaceTildeAscii(links[a])+"</a><br/>";
+                 }
+                 else
+                 {
+                   
+                   if(links[a].indexOf("https://") > -1)
+                   {
+                     var links_0 = links[a].replace("https://","http://");
+                     link += "<a href="+replaceTildeAscii(links[a])+" target='_blank'>"+replaceTildeAscii(links_0)+"</a><br/>";
+                   }
+                   else
+                   {
+                     link += "<a href="+"http://"+replaceTildeAscii(links[a])+" target='_blank'>"+"http://"+replaceTildeAscii(links[a])+"</a><br/>";
+                   }
+                 }
+               }
+               var addButton="<input type='button' class='submit' style='font-size:10px;' value='Add New Link' onclick='addLink()'/><br/>"
+               $("#websId").html("<br/>"+link);
+               $("#websId").append(addButton);
+             } 
+            else
+             {
+                 
+                 document.getElementById("websiteIcsIds").value = response[8];
+                 $("#websiteIcsId").hide();
+                 var link = '';
+                
+                 if(response[8].indexOf("http://") > -1)
+                 {
+                    
+                   link += "<a href="+replaceTildeAscii(response[8])+" target='_blank'>"+replaceTildeAscii(response[8])+"</a><br/>";
+                 }
+                 else
+                 {
+                   
+                   if(response[8].indexOf("https://") > -1)
+                   {
+                     var res8_0 = response[8].replace("https://","http://");
+                     link += "<a href="+replaceTildeAscii(response[8])+" target='_blank'>"+replaceTildeAscii(res8_0)+"</a><br/>";
+                   }
+                   else
+                   {
+                     link += "<a href="+"http://"+replaceTildeAscii(response[8])+" target='_blank'>"+"http://"+replaceTildeAscii(response[8])+"</a><br/>";
+                   }
+                 }
+                 var addButton="<input type='button' class='submit' style='font-size:10px;' value='Add New Link' onclick='addLink()'/><br/>"
+                 $("#websId").html("<br/>"+link);
+                 $("#websId").append(addButton);
+             
+             }
+           }
+         else
+           {
+
+              if(response[8] == 'none' || response[8] == '' || response[8] == 'null')
+              {
+                document.getElementById("websiteIcsIds").value = '';
+                $("#websiteIcsId").show();
+              
+              }
+              else
+              {
+             if(response[8].indexOf(';') > -1)
+             {
+               var links = response[8].trim().split(';');
+               $("#websiteIcsId").hide();
+               var link = '';
+               var textarea = '';
+               for(var a=0; a<links.length; a++)
+               {
+                 if(links[a].indexOf("http://") > -1)
+                 {
+                    
+                   link += "<a href="+replaceTildeAscii(links[a])+" target='_blank'>"+replaceTildeAscii(links[a])+"</a><br/>";
+                 }
+                 else
+                 {
+                   
+                   if(links[a].indexOf("https://") > -1)
+                   {
+                     var links_1 = links[a].replace("https://","http://");
+                     link += "<a href="+replaceTildeAscii(links[a])+" target='_blank'>"+replaceTildeAscii(links_1)+"</a><br/>";
+                   }
+                   else
+                   {
+                     link += "<a href="+"http://"+replaceTildeAscii(links[a])+" target='_blank'>"+"http://"+replaceTildeAscii(links[a])+"</a><br/>";
+                   }
+                 }
+              
+                 textarea += replaceTildeAscii(links[a])+"\n";
+               }
+                 var addButton="<input type='button' class='submit' style='font-size:10px;' value='Add New Link' onclick='addLink()'/><br/>"
+                 var editButton="<input id='editId' type='button' class='submit' style='font-size:10px;' value='Edit Links'/><br/>"
+                 $("#websId").html("<br/>"+link);
+                 $("#websId").append(addButton);
+               
+               if(ticketStatus == WIP_AGENTREWORK)
+               {
+                  if (response[18] != null)
+                  {
+                    document.getElementById("websiteIcsId").value = response[18];
+                    $("#websiteIcsId").show();
+                  }
+                  
+                 $("#websId").append(editButton);
+                 $("#websId").append(addButton);
+                 $( "#editId" ).click(function() {
+                 $("#websiteIcsId").hide();
+                 $("#websId").html('<br/><textarea id="editedId" rows="10" cols="30">'+textarea+'</textarea><br/>');
+                 $("#websId").append(editButton);
+                 $("#websId").append(addButton);});
+               
+               }
+             } 
+             else
+             {
+                
+                $("#websiteIcsId").hide();
+                var link = '';
+                var textarea = '';
+                 if(response[8].indexOf("http://") > -1)
+                 {
+                    
+                   link += "<a href="+replaceTildeAscii(response[8])+" target='_blank'>"+replaceTildeAscii(response[8])+"</a><br/>";
+                 }
+                 else
+                 {
+                   
+                   if(response[8].indexOf("https://") > -1)
+                   {
+                     var res8_1 = response[8].replace("https://","http://");
+                     link += "<a href="+replaceTildeAscii(response[8])+" target='_blank'>"+replaceTildeAscii(res8_1)+"</a><br/>";
+                   }
+                   else
+                   {
+                     link += "<a href="+"http://"+replaceTildeAscii(response[8])+" target='_blank'>"+"http://"+replaceTildeAscii(response[8])+"</a><br/>";
+                   }
+                 }
+                textarea += replaceTildeAscii(response[8])+"\n";
+              
+                var addButton="<input type='button' class='submit' style='font-size:10px;' value='Add New Link' onclick='addLink()'/><br/>"
+                var editButton="<input id='editId' type='button' class='submit' style='font-size:10px;' value='Edit Links'/><br/>"
+                $("#websId").html("<br/>"+link);
+                $("#websId").append(addButton);
+                
+                if(ticketStatus == WIP_AGENTREWORK)
+                {
+                  if (response[18] != null)
+                  {
+                    document.getElementById("websiteIcsId").value = response[18];
+                    $("#websiteIcsId").show();
+                  }
+                  
+                  $("#websId").append(editButton);
+                  $("#websId").append(addButton);
+                  $( "#editId" ).click(function() {
+                  $("#websiteIcsId").hide();
+                  $("#websId").html('<br/><textarea id="editedId" rows="10" cols="30">'+textarea+'</textarea><br/>');
+                  $("#websId").append(editButton);
+                  $("#websId").append(addButton);});
+                
+                }
+             
+             
+             }
+           }
+         }
+           
+           google.script.run.userAssigning(userName,rowId,userRole);
+        }
+   }
+   
+   function resetFieldData()
+   {
+        document.getElementById("comTypeId").value = '';
+        document.getElementById("podId").value = '';
+        document.getElementById("cId").value = '';
+        document.getElementById("propcompanyId").value = '';
+        document.getElementById("oppId").value = '';
+        document.getElementById("websiteId").value = '';
+        document.getElementById("websiteIcsId").value = '';
+        document.getElementById("rollUpId").value = '';
+        document.getElementById("correctCompNameId").value = '';
+        document.getElementById("corectCompId").value = '';
+        document.getElementById("flagSelection").value = 'select';
+        document.getElementById("ParentSelection").value = 'select';
+        document.getElementById("childCompId").value = '';;
+        document.getElementById("divCompId").value = '';
+        document.getElementById("lowestCompId").value = '';
+        document.getElementById("destId").value = '';
+        document.getElementById("sourceId").value = '';
+        document.getElementById("parentCompId").value = '';
+        document.getElementById("lowestParentCompId").value = 'select';
+        document.getElementById("lowestChildCompId").value = 'select';
+        document.getElementById("lowestDivCompId").value = 'select';
+        document.getElementById("lowestParentCompIdEdited").value = '';
+        document.getElementById("lowestChildCompIdEdited").value = '';
+        document.getElementById("lowestDivCompIdEdited").value = '';
+        document.getElementById("actionId").value = 'select';
+        document.getElementById("mergeSelection").value = 'select';
+        document.getElementById("mccId").value = '';
+        document.getElementById("agencyId").value = '';
+        document.getElementById("escalationSelection").value = 'select';
+        document.getElementById("clarSelection").value = 'select';
+        document.getElementById("remarksId").value = '';
+        document.getElementById("rejectId").value = '';
+        $('#rejectId').css('border-color', 'default');
+        document.getElementById("websiteIcsIdComments").value = '';
+        document.getElementById("rollUpIdComments").value = '';
+        document.getElementById("correctCompNameComments").value = '';
+        document.getElementById("correctCompIDComments").value = '';
+        document.getElementById("mccComments").value = '';
+        document.getElementById("agencyComments").value = '';
+        document.getElementById("escalationComments").value = '';
+        document.getElementById("parentNPLComments").value = '';
+        document.getElementById("FlagComments").value = '';
+        document.getElementById("parentCmpComments").value = '';
+        document.getElementById("parentLowestComments").value = '';
+        document.getElementById("childComments").value = '';
+        document.getElementById("childLowestComments").value = '';
+        document.getElementById("divisionComments").value = '';
+        document.getElementById("divisionLowestComments").value = '';
+        document.getElementById("lowestComments").value = '';
+        document.getElementById("actionComments").value = '';
+        document.getElementById("sourceComments").value = '';
+        document.getElementById("destinationComments").value = '';
+        document.getElementById("mergeComments").value = '';
+        document.getElementById("clarComments").value = 'select';
+        document.getElementById("remarksComments").value = '';
+        document.getElementById("websiteIcsIdAprove_1").value = 'approved';
+        document.getElementById("rollUpIdAprove_2").value = 'approved';
+        document.getElementById("correctCompNameAprove_3").value = 'select';
+        document.getElementById("correctCompIDAprove_4").value = 'approved';
+        document.getElementById("parentNPLAprove_5").value = 'approved';
+        document.getElementById("parentCmpAprove_6").value = 'approved';
+        document.getElementById("parentLowestAprove_7").value = 'approved';
+        document.getElementById("childLowestAprove_10").value = 'approved';
+        document.getElementById("FlagAprove_8").value = 'approved';
+        document.getElementById("childAprove_9").value = 'approved';
+        document.getElementById("divisionAprove_11").value = 'approved';
+        document.getElementById("divisionLowestAprove_12").value = 'approved'
+        document.getElementById("lowestAprove_13").value = 'approved';
+        document.getElementById("actionAprove_14").value = 'approved';
+        document.getElementById("sourceAprove_15").value = 'approved';
+        document.getElementById("destinationtAprove_16").value = 'approved';
+        document.getElementById("mergeAprove_17").value = 'approved';
+        document.getElementById("mccAprove_18").value = 'select';
+        document.getElementById("agencyAprove_19").value = 'select';
+        document.getElementById("escalationAprove_20").value = 'select';
+        
+        document.getElementById("select_merge_exists").value = 'select';
+        document.getElementById("select_merge_status").value = 'select';
+        document.getElementById("mergeExistsAprove_22").value = 'approved';
+        document.getElementById("mergeStatusComments").value = '';
+        document.getElementById("mergeStatusAprove_21").value = 'approved';
+        document.getElementById("mergeStatusComments").value = '';
+        
+   }
+  
+  function getDataforLead()
+  {
+       document.getElementById("lead").innerHTML = "Lead Page was In Progress";
+  }
+ 
+  function paused()
+  { 
+       document.getElementById("submitId").disabled = true;
+       if(document.getElementById("pauseId").value == 'Play')
+       {
+          var cId= document.getElementById("cId").value;
+          if(userRole == USER_ROLE_AGENT)
+          {
+          google.script.run.updateStatusHistory(cId,"Play",userName);
+          }
+          else
+          {
+          google.script.run.updateQaStatusHistory(cId,"Play",userName);
+          }
+          document.getElementById("pauseId").value ='Pause'
+          document.getElementById("submitId").disabled =false;
+       }
+      else
+      {
+          if( userRole == USER_ROLE_AGENT)
+          {
+              var cId = document.getElementById("cId").value;
+              var websiteIcsId = document.getElementById("websiteIcsId").value;
+              var rollUpId= document.getElementById("rollUpId").value;
+              var correctCompNameId = document.getElementById("correctCompNameId").value;
+              var corectCompId = (document.getElementById("corectCompId").value == '') ? null : document.getElementById("corectCompId").value;
+              var mccId = (document.getElementById("mccId").value == '') ? null : document.getElementById("mccId").value;
+              var agencyId = document.getElementById("agencyId").value;
+              var escalationSelection = document.getElementById("escalationSelection").value;
+              var ParentSelection = document.getElementById("ParentSelection").value;
+              var flagSelection = document.getElementById("flagSelection").value;
+              var parentCompId = document.getElementById("parentCompId").value;
+              var lowestParentCompId = document.getElementById("lowestParentCompId").value;
+
+              if (lowestParentCompId == "[1] - Yes" || lowestParentCompId == "[2] - No" || lowestParentCompId == "[3] - Not Applicable")
+              {
+                lowestParentCompId = document.getElementById("lowestParentCompId").value;
+              }
+              else
+              {
+                lowestParentCompId = $('#lowestParentCompIdEdited').val();
+              }
+              var childCompId = document.getElementById("childCompId").value;
+              var lowestChildCompId = document.getElementById("lowestChildCompId").value;
+              if (lowestChildCompId == "[1] - Yes" || lowestChildCompId == "[2] - No" || lowestChildCompId == "[3] - Not Applicable")
+              {
+                lowestChildCompId = document.getElementById("lowestChildCompId").value;
+              }
+              else
+              {
+                lowestChildCompId = $('#lowestChildCompIdEdited').val();
+              }
+              
+              var divCompId = document.getElementById("divCompId").value;
+              var lowestDivCompId = document.getElementById("lowestDivCompId").value;
+              if (lowestDivCompId == "[1] - Yes" || lowestDivCompId == "[2] - No" || lowestDivCompId == "[3] - Not Applicable")
+              {
+                lowestDivCompId = document.getElementById("lowestDivCompId").value;
+              }
+              else
+              {
+                lowestDivCompId = $('#lowestDivCompIdEdited').val();
+              }
+
+              var lowestCompId = (document.getElementById("lowestCompId").value == '') ? null : document.getElementById("lowestCompId").value;
+              var actionId = document.getElementById("actionId").value;
+              var sourceId = (document.getElementById("sourceId").value == '') ? null : document.getElementById("sourceId").value;
+              var destId = (document.getElementById("destId").value == '') ? null : document.getElementById("destId").value;
+              var mergeSelection = document.getElementById("mergeSelection").value;
+              var clarSelection = document.getElementById("clarSelection").value;
+              var remarksId = document.getElementById("remarksId").value; 
+              var select_merge_exists = document.getElementById("select_merge_exists").value;
+              var select_merge_status = document.getElementById("select_merge_status").value;
+              var cidStatus = document.getElementById("clarstatus").value; 
+    
+ 
+          if(cidStatus == WIP_AGENTREWORK){ clarSelection = WIP_QAREWORK;}
+          
+              google.script.run.saveAgentData(cId,websiteIcsId,rollUpId,correctCompNameId,corectCompId,mccId,agencyId,escalationSelection,ParentSelection,flagSelection,parentCompId,lowestParentCompId
+            ,childCompId,lowestChildCompId,divCompId,lowestDivCompId,lowestCompId,actionId,sourceId,destId,mergeSelection,clarSelection,remarksId,"Pause",userName,userRole,select_merge_exists,select_merge_status);
+              document.getElementById("pauseId").value = 'Play';
+       }
+       else
+       {        
+           var programId =  document.getElementById("ProgramSelection").value;
+           var cId = document.getElementById("cId").value;
+           var websiteIcsIdAprove = document.getElementById("websiteIcsIdAprove_1").value;
+           var websiteIcsIdComments = document.getElementById("websiteIcsIdComments").value;
+           var rollUpIdAprove = document.getElementById("rollUpIdAprove_2").value;
+           var rollUpIdComments = document.getElementById("rollUpIdComments").value;
+           var correctCompNameAprove = document.getElementById("correctCompNameAprove_3").value;
+           var correctCompNameComments = document.getElementById("correctCompNameComments").value;
+           var correctCompIDAprove = document.getElementById("correctCompIDAprove_4").value;
+           var correctCompIDComments = document.getElementById("correctCompIDComments").value;
+           var mccAprove = document.getElementById("mccAprove_18").value;
+           var mccComments = document.getElementById("mccComments").value;
+           var agencyAprove = document.getElementById("agencyAprove_19").value;
+           var agencyComments = document.getElementById("agencyComments").value;
+           var escalationAprove = document.getElementById("escalationAprove_20").value;
+           var escalationComments = document.getElementById("escalationComments").value;
+           var parentNPLAprove = document.getElementById("parentNPLAprove_5").value;
+           var parentNPLComments = document.getElementById("parentNPLComments").value;
+           var FlagAprove = document.getElementById("FlagAprove_8").value;
+           var FlagComments = document.getElementById("FlagComments").value;
+           var parentCmpAprove = document.getElementById("parentCmpAprove_6").value;
+           var parentCmpComments = document.getElementById("parentCmpComments").value;
+           var parentLowestAprove = document.getElementById("parentLowestAprove_7").value;
+           var parentLowestComments = document.getElementById("parentLowestComments").value;
+           var childAprove = document.getElementById("childAprove_9").value;
+           var childComments = document.getElementById("childComments").value;
+           var childLowestAprove = document.getElementById("childLowestAprove_10").value;
+           var childLowestComments = document.getElementById("childLowestComments").value;
+           var divisionAprove = document.getElementById("divisionAprove_11").value;
+           var divisionComments = document.getElementById("divisionComments").value;
+           var divisionLowestAprove = document.getElementById("divisionLowestAprove_12").value;
+           var divisionLowestComments = document.getElementById("divisionLowestComments").value;
+           var lowestAprove = document.getElementById("lowestAprove_13").value;
+           var lowestComments = document.getElementById("lowestComments").value;
+           var actionAprove = document.getElementById("actionAprove_14").value;
+           var actionComments = document.getElementById("actionComments").value;
+           var sourceAprove = document.getElementById("sourceAprove_15").value;
+           var sourceComments = document.getElementById("sourceComments").value;
+           var destinationtAprove = document.getElementById("destinationtAprove_16").value;
+           var destinationComments = document.getElementById("destinationComments").value;
+           var mergeAprove = document.getElementById("mergeAprove_17").value;
+           var mergeComments = document.getElementById("mergeComments").value;
+           var clarComments = document.getElementById("clarComments").value;
+           var remarksComments = document.getElementById("remarksComments").value;  
+           
+          var mergeExistsAprove_22 = document.getElementById("mergeExistsAprove_22").value;
+          var mergeExistsComments = document.getElementById("mergeExistsComments").value;
+          var mergeStatusAprove_21 = document.getElementById("mergeStatusAprove_21").value;
+          var mergeStatusComments = document.getElementById("mergeStatusComments").value;
+          var qaStatus = parseInt(document.getElementById("rejectId").value);
+          if(qaStatus > 0 ){ clarComments = WIP_AGENTREWORK;}
+         
+           google.script.run.saveQAdata(cId,websiteIcsIdAprove,websiteIcsIdComments,rollUpIdAprove,rollUpIdComments,correctCompNameAprove,correctCompNameComments,correctCompIDAprove,correctCompIDComments,mccAprove,mccComments,
+            agencyAprove,agencyComments,escalationAprove,escalationComments,parentNPLAprove,parentNPLComments,FlagAprove,FlagComments,parentCmpAprove,parentCmpComments,parentLowestAprove,
+            parentLowestComments,childAprove,childComments,childLowestAprove,childLowestComments,divisionAprove,divisionComments,divisionLowestAprove,divisionLowestComments,lowestAprove,lowestComments,
+            actionAprove,actionComments,sourceAprove,sourceComments,destinationtAprove,destinationComments,mergeAprove,mergeComments,clarComments,remarksComments,"Pause",userName,userRole,mergeExistsAprove_22,mergeExistsComments,mergeStatusAprove_21,mergeStatusComments); 
+           document.getElementById("pauseId").value = 'Play';
+       }
+     }
+  }
+  function submitted()
+  {
+    var cId = document.getElementById("cId").value;
+    var websiteIcsId = (document.getElementById("websiteIcsId").value == '' ? "" : document.getElementById("websiteIcsId").value);
+    var rollUpId = (document.getElementById("rollUpId").value == '' ? "No Data" : document.getElementById("rollUpId").value);
+    var correctCompNameId = (document.getElementById("correctCompNameId").value == '' ? "No Data" : document.getElementById("correctCompNameId").value);
+    var corectCompId = (document.getElementById("corectCompId").value == '' ? -1 : document.getElementById("corectCompId").value);
+    var mccId = (document.getElementById("mccId").value == '' ? -1 : document.getElementById("mccId").value);
+    var agencyId = (document.getElementById("agencyId").value == '' ? "No Data" : document.getElementById("agencyId").value);
+    var escalationSelection = (document.getElementById("escalationSelection").value == '' ? "No Data" : document.getElementById("escalationSelection").value);
+    var ParentSelection = (document.getElementById("ParentSelection").value == '' ? "No Data" : document.getElementById("ParentSelection").value);
+    var flagSelection = (document.getElementById("flagSelection").value == '' ? "No Data" : document.getElementById("flagSelection").value);
+    var parentCompId = (document.getElementById("parentCompId").value == '' ? "No Data" : document.getElementById("parentCompId").value);
+    var lowestParentCompId = (document.getElementById("lowestParentCompId").value == '' ? "No Data" : document.getElementById("lowestParentCompId").value);
+//    if (document.getElementById("lowestParentCompId").value == '[4] - Need Editing')
+//    {
+//      lowestParentCompId = document.getElementById("lowestParentCompIdEdited").value;
+//    }
+//    else 
+    if (document.getElementById("lowestParentCompId").value != '')
+    {
+      lowestParentCompId = document.getElementById("lowestParentCompId").value;
+    }
+    
+    var childCompId = (document.getElementById("childCompId").value == '' ? "No Data" : document.getElementById("childCompId").value);
+    var lowestChildCompId = "No Data";
+//    if (document.getElementById("lowestChildCompId").value == '[4] - Need Editing')
+//    {
+//      lowestChildCompId = document.getElementById("lowestChildCompIdEdited").value;
+//    }
+//    else 
+    if (document.getElementById("lowestChildCompId").value != '')
+    {
+      lowestChildCompId = document.getElementById("lowestChildCompId").value;
+    }
+
+    var divCompId = (document.getElementById("divCompId").value == '' ? "No Data" : document.getElementById("divCompId").value);
+    var lowestDivCompId = (document.getElementById("lowestDivCompId").value == '' ? "No Data" : document.getElementById("lowestDivCompId").value);
+//    if (document.getElementById("lowestDivCompId").value == '[4] - Need Editing')
+//    {
+//      lowestDivCompId = document.getElementById("lowestDivCompIdEdited").value;
+//    }
+//    else 
+    if (document.getElementById("lowestDivCompId").value != '')
+    {
+      lowestDivCompId = document.getElementById("lowestDivCompId").value;
+    }
+
+    var lowestCompId = (document.getElementById("lowestCompId").value == '' ? -1 : document.getElementById("lowestCompId").value);
+    var actionId = (document.getElementById("actionId").value == '' ? "No Data" : document.getElementById("actionId").value);
+    var sourceId = (document.getElementById("sourceId").value == '' ? -1 : document.getElementById("sourceId").value);
+    var destId = (document.getElementById("destId").value == '' ? -1 : document.getElementById("destId").value);
+    var mergeSelection = (document.getElementById("mergeSelection").value == '' ? "No Data" : document.getElementById("mergeSelection").value);
+    var clarSelection = (document.getElementById("clarSelection").value == '' ? "No Data" : document.getElementById("clarSelection").value);
+    var remarksId = (document.getElementById("remarksId").value == '' ? '' : document.getElementById("remarksId").value);
+    var select_merge_exists = document.getElementById("select_merge_exists").value;
+    var select_merge_status = document.getElementById("select_merge_status").value;
+    
+    var cidStatus = document.getElementById("clarstatus").value; 
+    var websiteIcsIds = document.getElementById("websiteIcsIds").value;
+  
+    if(websiteIcsIds != '')
+    {
+      websiteIcsId = websiteIcsIds+"\n"+websiteIcsId;
+    }
+ 
+   if(cidStatus == WIP_AGENTREWORK){
+
+  try
+  {
+  /*
+   websiteIcsId = document.getElementById('editedId').value; 
+   var webId = document.getElementById("websiteIcsId").value;
+   
+   if(webId != '')
+   {
+     websiteIcsId = websiteIcsId+"\n"+webId;
+   }
+   */
+   var webId = document.getElementById("websiteIcsId").value;
+  }
+  catch (exception)
+  {
+    devAlert("exception: " + exception);
+  } 
+  
+   clarSelection = WIP_QAREWORK;
+   google.script.run.withSuccessHandler(showAgentError).saveAgentData(cId,websiteIcsId,rollUpId,correctCompNameId,corectCompId,mccId,agencyId,escalationSelection,ParentSelection,flagSelection,parentCompId,lowestParentCompId
+   ,childCompId,lowestChildCompId,divCompId,lowestDivCompId,lowestCompId,actionId,sourceId,destId,mergeSelection,clarSelection,remarksId,"none",userName,userRole,select_merge_exists,select_merge_status);
+   
+   }
+   else
+   {
+   google.script.run.withSuccessHandler(showAgentError).saveAgentData(cId,websiteIcsId,rollUpId,correctCompNameId,corectCompId,mccId,agencyId,escalationSelection,ParentSelection,flagSelection,parentCompId,lowestParentCompId
+   ,childCompId,lowestChildCompId,divCompId,lowestDivCompId,lowestCompId,actionId,sourceId,destId,mergeSelection,clarSelection,remarksId,"none",userName,userRole,select_merge_exists,select_merge_status);
+   
+   	}
+   }
+   
+   function showAgentError(rmsg)
+   {
+    if(rmsg == "No Error")
+    {
+       document.getElementById("getnextId").disabled = false;
+
+       document.getElementById("submitId").disabled = true;
+       document.getElementById("pauseId").disabled = true;
+      
+       google.script.run.withSuccessHandler(updateTickets).updatedTicketCount(userName,userRole,mysqlDateTime);
+       alert("Successfully submitted the ticket. Click getNext for new ticket");
+
+    }
+    else
+    {
+       alert("ERROR OCCURRED! Please verify the entered data. Error Message: " + rmsg);
+    }
+  }
+  function submitQa()
+  {
+  
+         var cId = document.getElementById("cId").value;
+         var websiteIcsIdAprove = document.getElementById("websiteIcsIdAprove_1").value;
+         var websiteIcsIdComments = document.getElementById("websiteIcsIdComments").value;
+         var rollUpIdAprove = document.getElementById("rollUpIdAprove_2").value;
+         var rollUpIdComments = document.getElementById("rollUpIdComments").value;
+         var correctCompNameAprove = document.getElementById("correctCompNameAprove_3").value;
+         var correctCompNameComments = document.getElementById("correctCompNameComments").value;
+         var correctCompIDAprove = document.getElementById("correctCompIDAprove_4").value;
+         var correctCompIDComments = document.getElementById("correctCompIDComments").value;
+         var mccAprove = document.getElementById("mccAprove_18").value;
+         var mccComments = document.getElementById("mccComments").value;
+         var agencyAprove = document.getElementById("agencyAprove_19").value;
+         var agencyComments = document.getElementById("agencyComments").value;
+         var escalationAprove = document.getElementById("escalationAprove_20").value;
+         var escalationComments = document.getElementById("escalationComments").value;
+         var parentNPLAprove = document.getElementById("parentNPLAprove_5").value;
+         var parentNPLComments = document.getElementById("parentNPLComments").value;
+         var FlagAprove = document.getElementById("FlagAprove_8").value;
+         var FlagComments = document.getElementById("FlagComments").value;
+         var parentCmpAprove = document.getElementById("parentCmpAprove_6").value;
+         var parentCmpComments = document.getElementById("parentCmpComments").value;
+         var parentLowestAprove = document.getElementById("parentLowestAprove_7").value;
+         var parentLowestComments = document.getElementById("parentLowestComments").value;
+         var childAprove = document.getElementById("childAprove_9").value;
+         var childComments = document.getElementById("childComments").value;
+         var childLowestAprove = document.getElementById("childLowestAprove_10").value;
+         var childLowestComments = document.getElementById("childLowestComments").value;
+         var divisionAprove = document.getElementById("divisionAprove_11").value;
+         var divisionComments = document.getElementById("divisionComments").value;
+         var divisionLowestAprove = document.getElementById("divisionLowestAprove_12").value;
+         var divisionLowestComments = document.getElementById("divisionLowestComments").value;
+         var lowestAprove = document.getElementById("lowestAprove_13").value;
+         var lowestComments = document.getElementById("lowestComments").value;
+         var actionAprove = document.getElementById("actionAprove_14").value;
+         var actionComments = document.getElementById("actionComments").value;
+         var sourceAprove = document.getElementById("sourceAprove_15").value;
+         var sourceComments = document.getElementById("sourceComments").value;
+         var destinationtAprove = document.getElementById("destinationtAprove_16").value;
+         var destinationComments = document.getElementById("destinationComments").value;
+         var mergeAprove = document.getElementById("mergeAprove_17").value;
+         var mergeComments = document.getElementById("mergeComments").value;
+         var clarComments = document.getElementById("clarComments").value;
+         var remarksComments = document.getElementById("remarksComments").value; 
+         
+         var mergeExistsAprove_22 = document.getElementById("mergeExistsAprove_22").value;
+         var mergeExistsComments = document.getElementById("mergeExistsComments").value;
+         var mergeStatusAprove_21 = document.getElementById("mergeStatusAprove_21").value;
+         var mergeStatusComments = document.getElementById("mergeStatusComments").value; 
+         var agentLdap = document.getElementById("agentName").value;
+         
+         var qaStatus = parseInt(document.getElementById("rejectId").value);
+
+         if(qaStatus > 0 )
+         {
+            clarComments = WIP_AGENTREWORK;
+            google.script.run.withSuccessHandler(onSuccessSendNotificationToAgent).sendNotificationToAgent(agentLdap,cId,remarksComments);
+            google.script.run.withSuccessHandler(showQAError).updateAgentHistory(cId,agentLdap,userName);
+            
+            google.script.run.withSuccessHandler(showQAError).saveQAdata(cId,websiteIcsIdAprove,websiteIcsIdComments,rollUpIdAprove,rollUpIdComments,correctCompNameAprove,correctCompNameComments,correctCompIDAprove,correctCompIDComments,mccAprove,mccComments,
+            agencyAprove,agencyComments,escalationAprove,escalationComments,parentNPLAprove,parentNPLComments,FlagAprove,FlagComments,parentCmpAprove,parentCmpComments,parentLowestAprove,
+            parentLowestComments,childAprove,childComments,childLowestAprove,childLowestComments,divisionAprove,divisionComments,divisionLowestAprove,divisionLowestComments,lowestAprove,lowestComments,
+            actionAprove,actionComments,sourceAprove,sourceComments,destinationtAprove,destinationComments,mergeAprove,mergeComments,clarComments,remarksComments,"none",userName,userRole,mergeExistsAprove_22,mergeExistsComments,mergeStatusAprove_21,mergeStatusComments);
+         
+         
+         }
+         else
+         {
+         
+         google.script.run.withSuccessHandler(showQAError).saveQAdata(cId,websiteIcsIdAprove,websiteIcsIdComments,rollUpIdAprove,rollUpIdComments,correctCompNameAprove,correctCompNameComments,correctCompIDAprove,correctCompIDComments,mccAprove,mccComments,
+         agencyAprove,agencyComments,escalationAprove,escalationComments,parentNPLAprove,parentNPLComments,FlagAprove,FlagComments,parentCmpAprove,parentCmpComments,parentLowestAprove,
+         parentLowestComments,childAprove,childComments,childLowestAprove,childLowestComments,divisionAprove,divisionComments,divisionLowestAprove,divisionLowestComments,lowestAprove,lowestComments,
+         actionAprove,actionComments,sourceAprove,sourceComments,destinationtAprove,destinationComments,mergeAprove,mergeComments,clarComments,remarksComments,"none",userName,userRole,mergeExistsAprove_22,mergeExistsComments,mergeStatusAprove_21,mergeStatusComments);
+         
+         
+         }
+       
+           
+  
+  }
+  
+  function onSuccessSendNotificationToAgent()
+  {
+    alert("Email notification sent to the Agent!");
+  }
+  
+   function showQAError(rmsg)
+   {
+    if(rmsg == "No Error")
+    {
+      document.getElementById("getnextId").disabled = false;
+      document.getElementById("submitId").disabled = true;
+      document.getElementById("pauseId").disabled = true;
+      google.script.run.withSuccessHandler(updateTickets).updatedTicketCount(userName,userRole,mysqlDateTime);
+      alert("Successfully submitted the ticket. Click getNext for new ticket");
+    }
+    else if(rmsg == "Ok")
+    {
+    
+    
+    }
+    else
+    {
+       alert("ERROR OCCURRED! Please verify the entered data. Error Message: " + rmsg);
+    }
+   }
+
+  function detailsOfPendingWipTicket(pid,userRole)
+  {
+         google.script.run.withSuccessHandler(getCidOfWipTicket).loadPendingTicket(userName,userRole,pid); 
+  
+  }
+
+  function detailsOfPendingWipTicketQA(pid,userRole)
+  {
+         google.script.run.withSuccessHandler(getCidOfWipTicket).loadPendingTicket(userName,userRole,pid); 
+  
+  }
+  
+  function getCidOfWipTicket(response)
+   {
+
+       if(userRole == USER_ROLE_AGENT)
+       {
+           if(response != 0)
+           {
+               google.script.run.withSuccessHandler(pendingTicketInformation).withFailureHandler(showError).AgentDataJoin(programChangedGlobal,response,userRole,userName);
+               google.script.run.withSuccessHandler(updatePlayTime).withFailureHandler(showError).statusinHistory(response,userName,userRole);
+           }
+        }
+        else
+        {
+             if(response != 0)
+             {
+                  google.script.run.withSuccessHandler(pendingTicketInformation).withFailureHandler(showError).AgentDataJoin(programChangedGlobal,response,userRole,userName);
+                  google.script.run.withSuccessHandler(updatePlayTime).withFailureHandler(showError).statusinHistory(response,userName,userRole);
+             }
+            
+         }
+   } 
+   function showError(error)
+   {
+     $('#fId').hide();
+     alert("Server error has occured "+error);
+     $('#errorId').show();
+     $('#errorId').html("<p align='center'><font size='4' color='red'>An external server error has occured!!!</font></p><p align='center'>"+error+"</p>");
+    
+   }
+   function updatePlayTime(response)
+   {
+     if(response > 0)
+     {
+       document.getElementById("getnextId").disabled = true;
+       document.getElementById("submitId").disabled = true;
+       document.getElementById("pauseId").disabled = false;
+       document.getElementById("pauseId").value = "Play";
+       $('#formId').show();
+     }
+     else
+     {
+       document.getElementById("getnextId").disabled = true;
+       document.getElementById("submitId").disabled = false;
+       document.getElementById("pauseId").disabled = false;
+       $('#formId').show();
+     }
+   }
+   
+   /*
+   First fetch: ticketInformation(response)
+   WIP fetch: pendingTicketInformation(response)
+   Table SFDC: (column: website) response[8]
+   Table Agent: (column: website_from_ics) response[18]
+   */
+  function pendingTicketInformation(response)
+  {
+      //alert('pending'+response);
+       var ticketStatus = response[9].toString();
+       var cidvalue = response[5].toString();
+  
+       if(ticketStatus == WIP_AGENTREWORK)
+       {
+     
+        $('td:nth-child(6)').show();
+        
+        $('#websiteIcsIdComments').attr('readonly','readonly');
+        $('#websiteIcsIdComments').val(response[45].toString());
+        $('#rollUpIdComments').attr('readonly','readonly');
+        $('#rollUpIdComments').val(response[47].toString());
+        $('#correctCompIDComments').attr('readonly','readonly');
+        $('#correctCompIDComments').val(response[51].toString());
+        $('#parentNPLComments').attr('readonly','readonly');
+        $('#parentNPLComments').val(response[59].toString());
+        $('#parentCmpComments').attr('readonly','readonly');
+        $('#parentCmpComments').val(response[63].toString());
+        $('#parentLowestComments').attr('readonly','readonly');
+        $('#parentLowestComments').val(response[65].toString());
+        $('#childComments').attr('readonly','readonly');
+        $('#childComments').val(response[67].toString());
+        $('#childLowestComments').attr('readonly','readonly');
+        $('#childLowestComments').val(response[69].toString());
+        $('#divisionComments').attr('readonly','readonly');
+        $('#divisionComments').val(response[71].toString());
+        $('#divisionLowestComments ').attr('readonly','readonly');
+        $('#divisionLowestComments ').val(response[73].toString());
+        $('#lowestComments').attr('readonly','readonly');
+        $('#lowestComments').val(response[75].toString());
+        $('#actionComments').attr('readonly','readonly');
+        $('#actionComments').val(response[77].toString());
+        $('#FlagComments').attr('readonly','readonly');
+        $('#FlagComments').val(response[61].toString());
+        $('#mergeExistsComments').attr('readonly','readonly');
+        $('#mergeExistsComments').val(response[79].toString());
+        $('#mergeStatusComments').attr('readonly','readonly');
+        $('#mergeStatusComments').val(response[81].toString());
+        $('#sourceComments').attr('readonly','readonly');
+        $('#sourceComments').val(response[83].toString());
+        $('#destinationComments').attr('readonly','readonly');
+        $('#destinationComments').val(response[85].toString());
+        $('#mergeComments').attr('readonly','readonly');
+        $('#mergeComments').val(response[87].toString());
+        
+        $('#websiteIcsId').attr('readonly', true);
+        $('#rollUpId').attr('readonly', true);
+        $('#ParentSelection').prop("disabled", true); 
+        $('#parentCompId').attr('readonly', true); 
+        $('#lowestParentCompId').prop("disabled", true);
+        $('#lowestParentCompIdEdited').attr('readonly', true);
+        $('#childCompId').attr('readonly', true); 
+        $('#lowestChildCompId').prop("disabled", true);
+        $('#lowestChildCompIdEdited').attr('readonly', true);
+        $('#divCompId').attr('readonly', true); 
+        $('#lowestDivCompId').prop("disabled", true); 
+        $('#lowestDivCompIdEdited').attr('readonly', true);
+        $('#lowestCompId').attr('readonly', true);
+        $('#actionId').prop("disabled", true); 
+        $('#flagSelection').prop("disabled", true);
+        $('#clarSelection').prop("disabled", true);
+        $('#mergeSelection').prop("disabled", true);
+        $('#sourceId').attr('readonly', true); 
+        $('#destId').attr('readonly', true); 
+        $('#select_merge_exists').prop("disabled", true);
+        $('#select_merge_status').prop("disabled", true); 
+        $('#remarksId').attr('readonly','readonly');
+        
+         $("#websId").html("&nbsp;&nbsp;<input type='button' id='web' value='Edit'/>");
+         $("#rpId").html("&nbsp;&nbsp;<input type='button' id='rp' value='Edit'/>");
+         $("#corectCId").html("&nbsp;&nbsp;<input type='button' id='correctC' value='Edit'/>");
+         $("#ParentSelectionId").html("&nbsp;&nbsp;<input type='button' id='psel' value='Edit'/>");
+         $("#parCompId").html("&nbsp;&nbsp;<input type='button' id='parComp' value='Edit'/>");
+         $("#lowParCompId").html("&nbsp;&nbsp;<input type='button' id='lowParComp' value='Edit'/>");
+         $("#cCompId").html("&nbsp;&nbsp;<input type='button' id='cComp' value='Edit'/>");
+         $("#lowChildCId").html("&nbsp;&nbsp;<input type='button' id='lowChildC' value='Edit'/>");
+         $("#divCId").html("&nbsp;&nbsp;<input type='button' id='divC' value='Edit'/>");
+         $("#lowDivCId").html("&nbsp;&nbsp;<input type='button' id='lowDiv' value='Edit'/>");
+         $("#lowCompId").html("&nbsp;&nbsp;<input type='button' id='lowComp' value='Edit'/>");
+         $("#actId").html("&nbsp;&nbsp;<input type='button' id='act' value='Edit'/>");
+         $("#flagSelectionId").html("&nbsp;&nbsp;<input type='button' id='flagSel' value='Edit'/>");
+         $("#clarSelId").html("&nbsp;&nbsp;<input type='button' id='clarSel' value='Edit'/><input type='hidden' id='clarstatus' value='"+response[9].toString()+"'/>");
+         $("#mergeSelId").html("&nbsp;&nbsp;<input type='button' id='mergeSel' value='Edit'/>");			 
+         $("#sId").html("&nbsp;&nbsp;<input type='button' id='s' value='Edit'/>");
+         $("#dId").html("&nbsp;&nbsp;<input type='button' id='d' value='Edit'/>");
+         $("#select_merge_statusId").html("&nbsp;&nbsp;<input type='button' id='selectmstatus' value='Edit'/>");
+         $("#select_merge_existsId").html("&nbsp;&nbsp;<input type='button' id='selectmexists' value='Edit'/>");
+         $("#remId").html("&nbsp;&nbsp;<input type='button' id='rem' value='Edit'/>");
+
+         $('#web').click(function(){ $('#websiteIcsId').attr('readonly',false); $('#websiteIcsId').css("background-color", "#A9D0F5");}); 
+         $('#rp').click(function(){$('#rollUpId').attr('readonly',false);$('#rollUpId').css("background-color", "#A9D0F5");});
+         $('#correctC').click(function(){$('#corectCompId').attr('readonly',false);$('#corectCompId').css("background-color", "#A9D0F5");});
+         $('#psel').click(function(){$('#ParentSelection').prop("disabled",false);$('#ParentSelection').css("background-color", "#A9D0F5");});
+         $('#parComp').click(function(){$('#parentCompId').attr('readonly',false);$('#parentCompId').css("background-color", "#A9D0F5")});
+         $('#lowParComp').click(function(){$('#lowestParentCompId').prop("disabled",false);$('#lowestParentCompIdEdited').attr('readonly',false);$('#lowestParentCompId').css("background-color", "#A9D0F5");$('#lowestParentCompIdEdited').css("background-color", "#A9D0F5")});
+         $('#cComp').click(function(){$('#childCompId').attr('readonly',false);$('#childCompId').css("background-color", "#A9D0F5");});
+         $('#lowChildC').click(function(){$('#lowestChildCompId').prop("disabled",false);$('#lowestChildCompIdEdited').attr('readonly',false);$('#lowestChildCompId').css("background-color", "#A9D0F5");$('#lowestChildCompIdEdited').css("background-color", "#A9D0F5")});
+         $('#divC').click(function(){$('#divCompId').attr('readonly',false);$('#divCompId').css("background-color", "#A9D0F5");});
+         $('#lowDiv').click(function(){$('#lowestDivCompId').prop("disabled",false);$('#lowestDivCompIdEdited').attr('readonly',false);$('#lowestDivCompId').css("background-color", "#A9D0F5");$('#lowestDivCompIdEdited').css("background-color", "#A9D0F5")});
+         $('#lowComp').click(function(){$('#lowestCompId').attr('readonly',false);$('#lowestCompId').css("background-color", "#A9D0F5");});
+         $('#act').click(function(){$('#actionId').prop("disabled",false);$('#actionId').css("background-color", "#A9D0F5")});
+         $('#flagSel').click(function(){$('#flagSelection').prop("disabled",false);$('#flagSelection').css("background-color", "#A9D0F5");});
+         $('#clarSel').click(function(){$('#clarSelection').prop("disabled",false);$('#clarSelection').css("background-color", "#A9D0F5");});
+         $('#mergeSel').click(function(){ $('#mergeSelection').prop("disabled",false);$('#mergeSelection').css("background-color", "#A9D0F5");});
+         $('#s').click(function(){ $('#sourceId').attr('readonly',false);$('#sourceId').css("background-color", "#A9D0F5");});
+         $('#d').click(function(){  $('#destId').attr('readonly',false);$('#destId').css("background-color", "#A9D0F5");});
+         $('#selectmstatus').click(function(){$('#select_merge_status').prop("disabled",false);$('#select_merge_status').css("background-color", "#A9D0F5");});
+         $('#selectmexists').click(function(){$('#select_merge_exists').prop("disabled",false);$('#select_merge_exists').css("background-color", "#A9D0F5");});
+         $('#rem').click(function(){$('#remarksId').removeAttr('readonly'); $('#remarksId').css("background-color", "#A9D0F5");});
+
+       }
+       else
+       {
+         resetEditData();
+       }
+  
+          $('#formId').show();
+          document.getElementById("comTypeId").value = response[3];
+          $('#comTypeId').attr('readonly', true);
+          document.getElementById("podId").value = response[4]
+          $('#podId').attr('readonly', true);
+          document.getElementById("cId").value = response[5];
+          $('#cId').attr('readonly', true);
+          document.getElementById("propcompanyId").value = response[6];
+          $('#propcompanyId').attr('readonly', true);
+          document.getElementById("oppId").value = response[7];
+          $('#oppId').attr('readonly', true);
+          document.getElementById("websiteId").value = replaceTildeAscii(response[8]);
+          $('#websiteId').attr('readonly', true);
+
+          var ldapAgent = response[10].toString();
+          var innerHtml = "&nbsp;&nbsp;<input type='text' value='LDAP:' style='font: bold; font-size: 14px; width: 100px; background-color: #DCDCDC;'readonly />"
+                        +"&nbsp;<input type='text' id='agentName' value='"+ldapAgent+"' readonly />";
+
+           if(response[8] == 'null')
+           {
+             document.getElementById("websiteIcsId").value = (response[18] == "null" || response[18] == "") ? "" : response[18];
+           }
+           else if(response[8] == 'none')
+           {
+             document.getElementById("websiteIcsId").value = (response[18] == "null" || response[18] == "") ? "" : response[18];
+           }
+           else if(response[8] == '')
+           {
+             document.getElementById("websiteIcsId").value = (response[18] == "null" || response[18] == "") ? "" : response[18];
+           }
+           else if(response[18] == 'null')
+           {
+            
+             if(response[8].indexOf(';') > -1)
+             {
+               var links = response[8].trim().split(';');
+               document.getElementById("websiteIcsIds").value = response[8];
+               $("#websiteIcsId").hide();
+               var link = '';
+               for(var a=0; a<links.length; a++)
+               {
+                 if(links[a].indexOf("http://") > -1)
+                 {
+                    
+                   link += "<a href="+replaceTildeAscii(links[a])+" target='_blank'>"+replaceTildeAscii(links[a])+"</a><br/>";
+                 }
+                 else
+                 {
+                   
+                   if(links[a].indexOf("https://") > -1)
+                   {
+                     links[a] = links[a].replace("https://","http://");
+                     link += "<a href="+replaceTildeAscii(links[a])+" target='_blank'>"+replaceTildeAscii(links[a])+"</a><br/>";
+                   }
+                   else
+                   {
+                     link += "<a href="+"http://"+replaceTildeAscii(links[a])+" target='_blank'>"+"http://"+replaceTildeAscii(links[a])+"</a><br/>";
+                   }
+                 }
+               }
+               var addButton="<input type='button' class='submit' style='font-size:10px;' value='Add New Link' onclick='addLink()'/><br/>"
+               $("#websId").html("<br/>"+link);
+               $("#websId").append(addButton);
+             } 
+             else
+             {
+                 
+                 document.getElementById("websiteIcsIds").value = response[8];
+                 $("#websiteIcsId").hide();
+                 var link = '';
+                
+                 if(response[8].indexOf("http://") > -1)
+                 {
+                    
+                   link += "<a href="+replaceTildeAscii(response[8])+" target='_blank'>"+replaceTildeAscii(response[8])+"</a><br/>";
+                 }
+                 else
+                 {
+                   
+                   if(response[8].indexOf("https://") > -1)
+                   {
+                     response[8] = response[8].replace("https://","http://");
+                     link += "<a href="+replaceTildeAscii(response[8])+" target='_blank'>"+replaceTildeAscii(response[8])+"</a><br/>";
+                   }
+                   else
+                   {
+                     link += "<a href="+"http://"+replaceTildeAscii(response[8])+" target='_blank'>"+"http://"+replaceTildeAscii(response[8])+"</a><br/>";
+                   }
+                 }
+                 var addButton="<input type='button' class='submit' style='font-size:10px;' value='Add New Link' onclick='addLink()'/><br/>"
+                 $("#websId").html("<br/>"+link);
+                 $("#websId").append(addButton);
+             
+             }
+           }
+           else
+           {
+              if(response[8] == 'none' || response[8] == '' || response[8] == 'null')
+              {
+                document.getElementById("websiteIcsIds").value = '';
+                $("#websiteIcsId").show();
+              
+              }
+              else
+              {
+             if(response[8].indexOf(';') > -1)
+             {
+               var links = response[8].trim().split(';');
+               $("#websiteIcsId").hide();
+               var link = '';
+               var textarea = '';
+               for(var a=0; a<links.length; a++)
+               {
+                 if(links[a].indexOf("http://") > -1)
+                 {
+                    
+                   link += "<a href="+replaceTildeAscii(links[a])+" target='_blank'>"+replaceTildeAscii(links[a])+"</a><br/>";
+                 }
+                 else
+                 {
+                   
+                   if(links[a].indexOf("https://") > -1)
+                   {
+                     links[a] = links[a].replace("https://","http://");
+                     link += "<a href="+replaceTildeAscii(links[a])+" target='_blank'>"+replaceTildeAscii(links[a])+"</a><br/>";
+                   }
+                   else
+                   {
+                     link += "<a href="+"http://"+replaceTildeAscii(links[a])+" target='_blank'>"+"http://"+replaceTildeAscii(links[a])+"</a><br/>";
+                   }
+                 }
+              
+                 textarea += replaceTildeAscii(links[a])+"\n";
+               }
+                 var addButton="<input type='button' class='submit' style='font-size:10px;' value='Add New Link' onclick='addLink()'/><br/>"
+                 var editButton="<input id='editId' type='button' class='submit' style='font-size:10px;' value='Edit Links'/><br/>"
+                 $("#websId").html("<br/>"+link);
+                 
+              if (response[18] != null)
+              {
+                document.getElementById("websiteIcsId").value = response[18];
+                $("#websiteIcsId").show();
+              }
+              else
+              {
+                 $("#websId").append(addButton);
+              }
+               
+               if(ticketStatus == WIP_AGENTREWORK)
+               {
+                  if (response[18] != null)
+                  {
+                    document.getElementById("websiteIcsId").value = response[18];
+                    $("#websiteIcsId").show();
+                  }
+              
+                 $("#websId").append(editButton);
+                 $("#websId").append(addButton);
+                 $( "#editId" ).click(function() {
+                 $("#websiteIcsId").hide();
+                 $("#websId").html('<br/><textarea id="editedId" rows="10" cols="30">'+textarea+'</textarea><br/>');
+                 $("#websId").append(editButton);
+                 $("#websId").append(addButton);});
+               
+               }
+             } 
+             else
+             {
+                $("#websiteIcsId").hide();
+                var link = '';
+                var textarea = '';
+                 if(response[8].indexOf("http://") > -1)
+                 {
+                    
+                   link += "<a href="+replaceTildeAscii(response[8])+" target='_blank'>"+replaceTildeAscii(response[8])+"</a><br/>";
+                 }
+                 else
+                 {
+                   
+                   if(response[8].indexOf("https://") > -1)
+                   {
+                     response[8] = response[8].replace("https://","http://");
+                     link += "<a href="+replaceTildeAscii(response[8])+" target='_blank'>"+replaceTildeAscii(response[8])+"</a><br/>";
+                   }
+                   else
+                   {
+                     link += "<a href="+"http://"+replaceTildeAscii(response[8])+" target='_blank'>"+"http://"+replaceTildeAscii(response[8])+"</a><br/>";
+                   }
+                 }
+                textarea += replaceTildeAscii(response[8])+"\n";
+              
+                var addButton="<input type='button' class='submit' style='font-size:10px;' value='Add New Link' onclick='addLink()'/><br/>"
+                var editButton="<input id='editId' type='button' class='submit' style='font-size:10px;' value='Edit Links'/><br/>"
+                $("#websId").html("<br/>"+link);
+
+              if (response[18] != null)
+              {
+                document.getElementById("websiteIcsId").value = response[18];
+              }
+              else
+              {
+                 $("#websId").append(addButton);
+              }
+                
+                if(ticketStatus == WIP_AGENTREWORK)
+                {
+                  if (response[18] != null)
+                  {
+                    document.getElementById("websiteIcsId").value = response[18];
+                    $("#websiteIcsId").show();
+                  }
+                  
+                  $("#websId").append(editButton);
+                  $("#websId").append(addButton);
+                  $( "#editId" ).click(function() {
+                  $("#websiteIcsId").hide();
+                  $("#websId").html('<br/><textarea id="editedId" rows="10" cols="30">'+textarea+'</textarea><br/>');
+                  $("#websId").append(editButton);
+                  $("#websId").append(addButton);});
+                
+                }
+             
+             
+             }
+           }
+         }
+          document.getElementById("rollUpId").value = (response[19] == "null" || response[19] == "") ? (response[6] == 'none' ? '' : response[6]) : response[19];
+          document.getElementById("correctCompNameId").value = (response[20] == "null") ? '' : response[20];
+          document.getElementById("corectCompId").value = (response[21] == "null") ? (response[7] == 'none' ? '' : response[7]) : response[21];
+          document.getElementById("mccId").value = (response[22] == "null") ? '' : response[22];
+          document.getElementById("agencyId").value = (response[23] == "null") ? '' : response[23];
+          document.getElementById("escalationSelection").value = (response[24] == "null") ? 'select' : response[24];
+          document.getElementById("ParentSelection").value = (response[25] == "null") ? 'select' : response[25];
+          document.getElementById("flagSelection").value = (response[26] == "null") ? 'select' : response[26];
+          document.getElementById("parentCompId").value = (response[27] == "null" || response[27] == "") ? (response[3] == 'none' ? '' : response[3]) : response[27];
+          
+          if (response[28] == "null" || response[28] == "")
+          {
+            $('#lowestParentCompId').show();
+            $('#lowestParentCompIdEdited').hide();
+            $('#lowestParentCompIdCancelId').hide();
+            document.getElementById("lowestParentCompId").value = 'select';
+          }
+          else if (response[28] == "[1] - Yes" || response[28] == "[2] - No" || response[28] == "[3] - Not Applicable" 
+                   || response[28] == "[4] - Need Editing" || response[28] == "select")
+          {
+            $('#lowestParentCompId').show();
+            $('#lowestParentCompIdEdited').hide();
+            $('#lowestParentCompIdCancelId').hide();
+            document.getElementById("lowestParentCompId").value = response[28];
+          }
+          else
+          {
+            // it means response[28] has user entered value
+            $('#lowestParentCompId').val('[4] - Need Editing');
+            $('#lowestParentCompId').hide();
+            $('#lowestParentCompIdEdited').show();
+            $('#lowestParentCompIdEdited').val(response[28]);
+            
+            if(ticketStatus != WIP_QAREWORK)
+            {
+              $('#lowestParentCompIdCancelId').show();
+            }
+          }
+          
+          document.getElementById("childCompId").value = (response[29] == "null") ? '' : response[29];
+          if (response[30] == "null" || response[30] == "")
+          {
+            $('#lowestChildCompId').show();
+            $('#lowestChildCompIdEdited').hide();
+            $('#lowestChildCompIdCancelId').hide();
+            document.getElementById("lowestChildCompId").value = 'select';
+          }
+          else if (response[30] == "[1] - Yes" || response[30] == "[2] - No" || response[30] == "[3] - Not Applicable"
+                  || response[30] == "[4] - Need Editing" || response[30] == "select")
+          {
+            $('#lowestChildCompId').show();
+            $('#lowestChildCompIdEdited').hide();
+            $('#lowestChildCompIdCancelId').hide();
+            document.getElementById("lowestChildCompId").value = response[30];
+          }
+          else
+          {
+            // it means response[30] has user entered value
+            $('#lowestChildCompId').val('[4] - Need Editing');
+            $('#lowestChildCompId').hide();
+            $('#lowestChildCompIdEdited').show();
+            $('#lowestChildCompIdEdited').val(response[30]);
+            
+            if(ticketStatus != WIP_QAREWORK)
+            {
+              $('#lowestChildCompIdCancelId').show();
+            }
+          }
+          
+          document.getElementById("divCompId").value = (response[31] == "null") ? '' : response[31];
+          if (response[32] == "null" || response[32] == "")
+          {
+            $('#lowestDivCompId').show();
+            $('#lowestDivCompIdEdited').hide();
+            $('#lowestDivCompIdCancelId').hide();
+            document.getElementById("lowestDivCompId").value = 'select';
+          }
+          else if (response[32] == "[1] - Yes" || response[32] == "[2] - No" || response[32] == "[3] - Not Applicable"
+                  || response[32] == "[4] - Need Editing" || response[32] == "select")
+          {
+            $('#lowestDivCompId').show();
+            $('#lowestDivCompIdEdited').hide();
+            $('#lowestDivCompIdCancelId').hide();
+            document.getElementById("lowestDivCompId").value = response[32];
+          }
+          else
+          {
+            // it means response[32] has user entered value
+            $('#lowestDivCompId').val('[4] - Need Editing');
+            $('#lowestDivCompId').hide();
+            $('#lowestDivCompIdEdited').show();
+            $('#lowestDivCompIdEdited').val(response[32]);
+            
+            if(ticketStatus != WIP_QAREWORK)
+            {
+              $('#lowestDivCompIdCancelId').show();
+            }
+          }
+          
+          document.getElementById("lowestCompId").value = (response[33] == "null") ? (response[4] == 'none' ? '' : response[4]) : response[33];
+          document.getElementById("actionId").value = (response[34] == "null") ? 'select' : response[34];
+          document.getElementById("select_merge_exists").value = (response[35] == "null") ? '' : response[35];
+          document.getElementById("select_merge_status").value = (response[36] == "null") ? '' : response[36];
+          document.getElementById("sourceId").value = (response[37] == "null") ? '' : response[37];
+          document.getElementById("destId").value = (response[38] == "null") ? '' : response[38];
+          document.getElementById("mergeSelection").value = (response[39] == "null") ? 'select' : response[39];
+         
+          if(response[40] == 'wip_qa_rework'){document.getElementById("clarSelection").value = 'NO';}
+          else{ document.getElementById("clarSelection").value = (response[40] == "null") ? 'select' : response[40];}
+          
+          document.getElementById("remarksId").value = (response[41] == "null") ? '' : response[41];
+          
+        
+         if(userRole == "QA")
+         {
+            if(response[14] == "null")
+            {
+                // update the qa_start_time if its null
+                google.script.run.userAssigning(response[13].toString(),response[0],userRole);
+            }
+            
+            $('td:nth-child(6)').show();
+            $('#agentId').html(innerHtml);
+            document.getElementById("websiteIcsIdAprove_1").value = (response[44] == "null") ? 'approved' : response[44];
+            document.getElementById("websiteIcsIdComments").value = (response[45] == "null") ? '' : response[45];
+            document.getElementById("rollUpIdAprove_2").value = (response[46] == "null") ? 'approved' : response[46];
+            document.getElementById("rollUpIdComments").value = (response[47] == "null") ? '' : response[47];
+            document.getElementById("correctCompNameAprove_3").value = (response[48] == "null") ? 'select' : response[48];
+            document.getElementById("correctCompNameComments").value = (response[49] == "null") ? '' : response[49];
+            document.getElementById("correctCompIDAprove_4").value = (response[50] == "null") ? 'approved' : response[50];
+            document.getElementById("correctCompIDComments").value = (response[51] == "null") ? '' : response[51];
+            document.getElementById("mccAprove_18").value = (response[52] == "null") ? 'select' : response[52];
+            document.getElementById("mccComments").value = (response[53] == "null") ? '' : response[53];
+            document.getElementById("agencyAprove_19").value = (response[54] == "null") ? 'select' : response[54];
+            document.getElementById("agencyComments").value = (response[55] == "null") ? '' : response[55];
+            document.getElementById("escalationAprove_20").value = (response[56] == "null") ? 'select' : response[56];
+            document.getElementById("escalationComments").value = (response[57] == "null") ? '' : response[57];
+            document.getElementById("parentNPLAprove_5").value = (response[58] == "null") ? 'approved' : response[58];
+            document.getElementById("parentNPLComments").value = (response[59] == "null") ? '' : response[59];
+            document.getElementById("FlagAprove_8").value = (response[60] == "null") ? 'approved' : response[60];
+            document.getElementById("FlagComments").value = (response[61] == "null") ? '' : response[61];
+            document.getElementById("parentCmpAprove_6").value = (response[62] == "null") ? 'approved' : response[62];
+            document.getElementById("parentCmpComments").value = (response[63] == "null") ? '' : response[63];
+            document.getElementById("parentLowestAprove_7").value = (response[64] == "null") ? 'approved' : response[64];
+            document.getElementById("parentLowestComments").value = (response[65] == "null") ? '' : response[65];
+            document.getElementById("childAprove_9").value = (response[66] == "null") ? 'approved' : response[66];
+            document.getElementById("childComments").value = (response[67] == "null") ? '' : response[67];
+            document.getElementById("childLowestAprove_10").value = (response[68] == "null") ? 'approved' : response[68];
+            document.getElementById("childLowestComments").value = (response[69] == "null") ? '' : response[69];
+            document.getElementById("divisionAprove_11").value = (response[70] == "null") ? 'approved' : response[70];
+            document.getElementById("divisionComments").value = (response[71] == "null") ? '' : response[71];
+            document.getElementById("divisionLowestAprove_12").value = (response[72] == "null") ? 'approved' : response[72];
+            document.getElementById("divisionLowestComments").value = (response[73] == "null") ? '' : response[73];
+            document.getElementById("lowestAprove_13").value = (response[74] == "null") ? 'approved' : response[74];
+            document.getElementById("lowestComments").value = (response[75] == "null") ? '' : response[75];
+            document.getElementById("actionAprove_14").value = (response[76] == "null") ? 'approved' : response[76];
+            document.getElementById("actionComments").value = (response[77] == "null") ? '' : response[77];
+
+            document.getElementById("mergeExistsAprove_22").value = (response[78] == "null") ? 'approved' : response[78];
+            document.getElementById("mergeExistsComments").value = (response[79] == "null") ? '' : response[79];
+            document.getElementById("mergeStatusAprove_21").value = (response[80] == "null") ? 'approved' : response[80];
+            document.getElementById("mergeStatusComments").value = (response[81] == "null") ? '' : response[81];
+            
+            document.getElementById("sourceAprove_15").value = (response[82] == "null") ? 'approved' : response[82];
+            document.getElementById("sourceComments").value = (response[83] == "null") ? '' : response[83];
+            document.getElementById("destinationtAprove_16").value = (response[84] == "null") ? 'approved' : response[84];
+            document.getElementById("destinationComments").value = (response[85] == "null") ? '' : response[85];
+            document.getElementById("mergeAprove_17").value = (response[86] == "null") ? 'approved' : response[86];
+            document.getElementById("mergeComments").value = (response[87] == "null") ? '' : response[87];
+            
+            if(response[88] == 'wip_agent_rework'){document.getElementById("clarComments").value = 'NO';}
+            else{ document.getElementById("clarComments").value = (response[88] == "null") ? 'select' : response[88];}
+           
+            document.getElementById("remarksComments").value = (response[89] == "null") ? '' : response[89];
+   
+        $('#websiteIcsId').attr('readonly', true);
+        $('#rollUpId').attr('readonly', true);
+        $('#ParentSelection').prop("disabled", true); 
+        $('#parentCompId').attr('readonly', true); 
+        $('#lowestParentCompId').prop("disabled", true);
+        $('#lowestParentCompIdEdited').attr('readonly', true); 
+        $('#childCompId').attr('readonly', true); 
+        $('#lowestChildCompId').prop("disabled", true);
+        $('#lowestChildCompIdEdited').attr('readonly', true); 
+        $('#divCompId').attr('readonly', true); 
+        $('#lowestDivCompId').prop("disabled", true); 
+        $('#lowestDivCompIdEdited').attr('readonly', true);
+        $('#lowestCompId').attr('readonly', true);
+        $('#actionId').prop("disabled", true); 
+        $('#flagSelection').prop("disabled", true);
+        $('#clarSelection').prop("disabled", true);
+        $('#mergeSelection').prop("disabled", true);
+        $('#sourceId').attr('readonly', true); 
+        $('#destId').attr('readonly', true); 
+        $('#select_merge_exists').prop("disabled", true);
+        $('#select_merge_status').prop("disabled", true); 
+        $('#remarksId').attr('readonly','readonly');
+              
+              rejectCount();
+        }
+  }
+  
+  function validateID(value)
+  {
+        if(value == 0)
+        {
+          alert("Please enter non-zero numeric value");
+        }
+  }
+  
+  function IsNumeric(evt)
+  {
+    if( userRole == USER_ROLE_AGENT)
+    {
+      var charCode = (evt.which) ? evt.which : event.keyCode;
+      if (charCode > 31 && (charCode < 48 || charCode > 57))
+      {
+        alert("Please enter only numeric value");
+        return false;
+      }
+      
+      return true;
+    }
+  }
+  
+  function formValidation()
+  {
+      var i = 0;
+      if( userRole == USER_ROLE_AGENT )
+      {
+        var id = "#flagSelection";
+        var selVal = $(id).val();
+        $(id).css('border-color','default');
+        $("#corectCompId").css('border-color','default');
+        $("#lowestCompId").css('border-color','default');
+        
+        if (selVal == "select")
+        {
+         $(id).css('border-color','red');
+        // alert("Please select a Flag reason");
+         return false;
+        }
+        
+        if (selVal == "[4] - Relinked to Existing Company" || selVal == "[5] - Relinked to Existing Company; Renamed to Follow CHIEF Guideline")
+        {
+          if ($("#corectCompId").val() == $("#lowestCompId").val())
+          {
+             $(id).css('border-color','red');
+             $("#corectCompId").css('border-color','red');
+             $("#lowestCompId").css('border-color','red');
+             return false;
+           }
+        }
+      
+        if (selVal == "[1] - Rollup and Name Correct" || 
+            selVal == "[2] - Company Renamed" ||
+            selVal == "[3] - Company Created & CID Linked" ||
+            selVal == "[4] - Relinked to Existing Company" ||
+            selVal == "[5] - Relinked to Existing Company; Renamed to Follow CHIEF Guideline")
+       {
+         if ($("#lowestCompId").val() <= 0)
+         {
+           $(id).css('border-color','red');
+           $("#lowestCompId").css('border-color','red');
+           return false;
+         }
+      }
+        var regexpGT = new RegExp("GreenTea_[0-9]+");
+	    var clarSelection= document.getElementById("clarSelection").value;
+        if(clarSelection == 'Yes')
+        {
+             var mystring =  document.getElementById("remarksId").value; 
+             if(!mystring.match(/\S/))
+             {
+                  alert ('Please enter remarks');
+                  return false;
+             }
+             
+             // if there is a clarification then it won't validate all fieds 
+			 submitted();
+         }
+         else if (regexpGT.test(programChangedGlobal))
+         {
+            var websiteIcsId = $('#websiteIcsId').val();
+            var rollUpId = $('#rollUpId').val();
+            var corectCompId = $('#corectCompId').val();
+            var parentCompId = $('#parentCompId').val();
+            var lowestCompId = $('#lowestCompId').val();
+           
+             if($('#websiteIcsId').is(":hidden"))
+              { }
+              else
+              {
+                  if (websiteIcsId == '')
+                  {
+                      $('#websiteIcsId').css('border-color', 'red');
+                      i++;
+                  }
+              }
+              if (rollUpId == '')
+              {
+                  $('#rollUpId').css('border-color', 'red');
+                  i++;
+              }
+              if (corectCompId == '')
+              {
+                  $('#corectCompId').css('border-color', 'red');
+                  i++;
+              }
+              if (parentCompId == '')
+              {
+                  $('#parentCompId').css('border-color', 'red');
+                  i++;
+              }
+              if (document.getElementById("flagSelection").value == "select")
+              {
+                 $('#flagSelection').css('border-color', 'red');
+                 i++;
+              }
+              
+              formValidateAndSubmit(i);
+         }
+        else
+        {		
+        var regexp = new RegExp("(AA|UMM|NBS|SSU|HV|HVplus|HVplusPlus|FRD|NOM|CS|TMA|MMSone|MMStwo|MA|GT|XP|DA|SBS)_[0-9]+");
+        if (regexp.test(programChangedGlobal))
+        {
+          var select_merge_exists = $('#select_merge_exists').val();
+          var select_merge_status = $('#select_merge_status').val();
+          if (select_merge_exists == "select")
+          {
+            $('#select_merge_exists').css('border-color', 'red');
+            i++;
+          }
+          if (select_merge_status == "select")
+          {
+            $('#select_merge_status').css('border-color', 'red');
+            i++;
+          }
+        }
+        else
+        {
+          var correctCompNameId = $('#correctCompNameId').val();
+          var mccId = $('#mccId').val();
+          var agencyId = $('#agencyId').val();
+          var escalationSelection = $('#escalationSelection').val();
+          
+          if (correctCompNameId == '')
+          {
+            $('#correctCompNameId').css('border-color', 'red');
+            i++;
+          }
+          if (mccId == '')
+          {
+            $('#mccId').css('border-color', 'red');
+            i++;
+          }
+          if (agencyId == '')
+          {
+            $('#agencyId').css('border-color', 'red');
+            i++;
+          }
+          if (escalationSelection == 'select')
+          {
+            $('#escalationSelection').css('border-color', 'red');
+            i++;
+          }
+        }
+        
+        var websiteIcsId = $('#websiteIcsId').val();
+        var rollUpId = $('#rollUpId').val();
+        var corectCompId = $('#corectCompId').val();
+        var parentCompId = $('#parentCompId').val();
+        var childCompId = $('#childCompId').val();
+        var divCompId = $('#divCompId').val();
+        var lowestCompId = $('#lowestCompId').val();
+        var sourceId = $('#sourceId').val();
+        var destId = $('#destId').val();
+        var correctCompNameId = $('#correctCompNameId').val();
+        var mccId = $('#mccId').val();
+        var agencyId = $('#agencyId').val();
+           if($('#websiteIcsId').is(":hidden"))
+           { }
+           else
+           {
+            if (websiteIcsId == '')
+            {
+             $('#websiteIcsId').css('border-color', 'red');
+             i++;
+            }
+          }
+          if (correctCompNameId == '')
+          {
+            $('#correctCompNameId').css('border-color', 'red');
+            i++;
+          }
+          if (mccId == '')
+          {
+            $('#mccId').css('border-color', 'red');
+            i++;
+          }
+          if (rollUpId == '')
+          {
+            $('#rollUpId').css('border-color', 'red');
+            i++;
+          }
+          if (corectCompId == '')
+          {
+            $('#corectCompId').css('border-color', 'red');
+            i++;
+          }
+          if (parentCompId == '')
+          {
+            $('#parentCompId').css('border-color', 'red');
+            i++;
+          }
+          if (childCompId == '')
+          {
+            $('#childCompId').css('border-color', 'red');
+            i++;
+          }
+          if (divCompId == '')
+          {
+            $('#divCompId').css('border-color', 'red');
+            i++;
+          }
+          if (lowestCompId == '')
+          {
+            $('#lowestCompId').css('border-color', 'red');
+            i++;
+          }
+          if (sourceId == '')
+          {
+            $('#sourceId').css('border-color', 'red');
+            i++;
+          }
+          if (destId == '')
+          {
+            $('#destId').css('border-color', 'red');
+            i++;
+          }
+        
+        if(document.getElementById("ParentSelection").value == "select")
+        {
+            $('#ParentSelection').css('border-color', 'red');
+            i++;
+        }
+        if(document.getElementById("mergeSelection").value == "select")
+        {
+            $('#mergeSelection').css('border-color', 'red');
+            i++;
+        }
+        if (document.getElementById("clarSelection").value == "select")
+        {
+            $('#clarSelection').css('border-color', 'red');
+            i++;
+        }
+       if (document.getElementById("lowestParentCompId").value == "select")
+       {
+           $('#lowestParentCompId').css('border-color', 'red');
+           i++;
+       }
+       if (document.getElementById("flagSelection").value == "select")
+       {
+           $('#flagSelection').css('border-color', 'red');
+           i++;
+       }
+       if (document.getElementById("lowestChildCompId").value == "select")
+       {
+           $('#lowestChildCompId').css('border-color', 'red');
+           i++;
+       }
+      if (document.getElementById("lowestDivCompId").value == "select")
+      {
+          $('#lowestDivCompId').css('border-color', 'red');
+          i++;
+      }
+      if (document.getElementById("actionId").value == "select")
+      {
+          $('#actionId').css('border-color', 'red');
+          i++;
+      }
+      
+      if (lowestCompId != correctCompNameId && lowestCompId != mccId && lowestCompId != agencyId)
+	  {
+		  $('#lowestCompId').css('border-color', 'red');
+		  i++;
+	  }
+      formValidateAndSubmit(i);
+	  }
+    }
+    else
+    {
+         var clarComments = document.getElementById("clarComments").value;
+         if(clarComments == 'Yes')
+          {
+             var mystring =  document.getElementById("remarksComments").value; 
+             if(!mystring.match(/\S/))
+             {
+                  alert ('Please enter remarks');
+                  return false;
+             } 
+          
+          submitQa();
+          }
+        else
+        {
+         
+          var j = 0;
+          if(document.getElementById("websiteIcsIdAprove_1").value == "select" )
+          {
+             $('#websiteIcsIdAprove_1').css('border-color', 'red');
+             j++;
+          }
+         if(document.getElementById("rollUpIdAprove_2").value == "select" )
+         {
+           $('#rollUpIdAprove_2').css('border-color', 'red');
+             j++;
+         }
+         if(document.getElementById("correctCompIDAprove_4").value == "select" )
+          {
+           $('#correctCompIDAprove_4').css('border-color', 'red');
+             j++;
+         }
+         if(document.getElementById("parentNPLAprove_5").value == "select" )
+          {
+           $('#parentNPLAprove_5').css('border-color', 'red');
+             j++;
+         }
+         if(document.getElementById("parentCmpAprove_6").value == "select" )
+          {
+           $('#parentCmpAprove_6').css('border-color', 'red');
+             j++;
+         }
+         if(document.getElementById("parentLowestAprove_7").value == "select" )
+          {
+           $('#parentLowestAprove_7').css('border-color', 'red');
+             j++;
+         }
+         if(document.getElementById("childAprove_9").value == "select" )
+          {
+           $('#childAprove_9').css('border-color', 'red');
+             j++;
+         }
+         if(document.getElementById("childLowestAprove_10").value == "select" )
+          {
+           $('#childLowestAprove_10').css('border-color', 'red');
+             j++;
+         }
+         if(document.getElementById("divisionAprove_11").value == "select" )
+          {
+           $('#divisionAprove_11').css('border-color', 'red');
+             j++;
+         }
+         if(document.getElementById("divisionLowestAprove_12").value == "select" )
+          {
+           $('#divisionLowestAprove_12').css('border-color', 'red');
+             j++;
+         }
+         if(document.getElementById("lowestAprove_13").value == "select" )
+          {
+           $('#lowestAprove_13').css('border-color', 'red');
+             j++;
+         }
+        if(document.getElementById("actionAprove_14").value == "select" )
+         {
+           $('#actionAprove_14').css('border-color', 'red');
+             j++;
+         }
+        if(document.getElementById("FlagAprove_8").value == "select" )
+         {
+           $('#FlagAprove_8').css('border-color', 'red');
+             j++;
+         }
+        if(document.getElementById("mergeExistsAprove_22").value == "select" )
+         {
+           $('#mergeExistsAprove_22').css('border-color', 'red');
+             j++;
+         }
+        if(document.getElementById("mergeStatusAprove_21").value == "select" )
+         {
+           $('#mergeStatusAprove_21').css('border-color', 'red');
+             j++;
+         }
+        if(document.getElementById("sourceAprove_15").value == "select" )
+         {
+           $('#sourceAprove_15').css('border-color', 'red');
+             j++;
+         }
+       if(document.getElementById("destinationtAprove_16").value == "select" )
+        {
+           $('#destinationtAprove_16').css('border-color', 'red');
+             j++;
+         }
+       if(document.getElementById("mergeAprove_17").value == "select" )
+        {
+           $('#mergeAprove_17').css('border-color', 'red');
+             j++;
+         }
+        if(document.getElementById("clarComments").value == "select")
+        {
+        
+        $('#clarComments').css('border-color', 'red');
+             j++;
+        }
+         
+          
+          if( j > 0)
+           {
+             alert("Please select the mandatory fields shown in red Colour");
+             return false;
+           }
+          else
+          {
+                if(clarComments == 'Yes')
+                {
+                  var mystring =  document.getElementById("remarksComments").value; 
+                     if(!mystring.match(/\S/))
+                       {
+                          alert ('Please enter remarks');
+                           return false;
+                       } 
+                }
+                submitQa();             
+          }
+       }
+    }
+     
+  }
+  
+  function rejectCount()
+  {
+ 
+      var array= ["websiteIcsIdAprove_1",
+                 "rollUpIdAprove_2",
+                 "correctCompNameAprove_3",
+                 "correctCompIDAprove_4", 
+                 "parentNPLAprove_5",
+                 "parentCmpAprove_6",
+                 "parentLowestAprove_7",
+                 "FlagAprove_8",
+                 "childAprove_9", 
+                 "childLowestAprove_10", 
+                 "divisionAprove_11", 
+                 "divisionLowestAprove_12",
+                 "lowestAprove_13",
+                 "actionAprove_14",
+                 "sourceAprove_15",
+                 "destinationtAprove_16", 
+                 "mergeAprove_17", 
+                 "mccAprove_18",
+                 "agencyAprove_19",
+                 "escalationAprove_20",
+                 "mergeStatusAprove_21",
+                 "mergeExistsAprove_22"];
+                 
+          for ( var i=0;i < array.length;i++)
+           {
+              if(document.getElementById(array[i]).value == "rejected")
+              {
+                rejCount = rejCount+1;
+                aproveCount[i] = 1;
+              }
+              else
+              {
+              aprCount = aprCount+1;
+                aproveCount[i] = 0;
+              }
+          }
+         if(rejCount>0)
+         {
+              document.getElementById("rejectId").value = rejCount;
+              $('#rejectId').css('border-color', 'red');
+         }
+         else
+         {
+              document.getElementById("rejectId").value = '';
+              $('#rejectId').css('border-color', 'default');
+          }
+  }
+  function validateReject(value,value1)
+  {
+    var data = value.split("_");
+    var id = data[1];
+     if(value1 == "approved")
+    {
+        aproveCount[id-1] = 0;
+    }
+    else if(value1 == "select")
+    {
+        aproveCount[id-1] = 0;
+    }
+    else 
+    {
+        aproveCount[id-1] = 1;
+    }
+     var count = 0;
+    for(var i=0;i<aproveCount.length;i++)
+    {
+        count = count+aproveCount[i];
+    }
+   if(count > 0)
+   {
+      document.getElementById("rejectId").value = count;
+       $('#rejectId').css('border-color', 'red');
+   }
+   else
+   {
+     document.getElementById("rejectId").value = '';
+     $('#rejectId').css('border-color', 'default');
+   }
+     
+ }
+ 
+ function validateClarification(value,id)
+ {
+          if(value == "Yes")
+         {
+            alert("Confirmation: You have selected clarification status 'yes'!");
+     
+         }
+         $('#clarSelection').css('border-color','default');
+     
+  }
+  function validateName(value)
+  {
+     var data = /((^.+(LTD|Ltd|PLC|SLa|GmbH)$)|(and|And|AND|AnD|aND)|(www)|([^&,'-.a-zA-Z0-9 ])|(^[A-Z ]+$)|([a-z] [a-z] [a-z]))/;
+     if(data.test(value))
+     {
+      // alert("Please enter a valid company name");
+        $("#parentCompId").css('border-color','red');
+     }
+     else
+     {
+       $("#parentCompId").css('border-color','default');
+     }
+  }
+     
+  function changeborder(val)
+  {
+      var id = "#"+val;
+      var selVal = $(id).val();
+      $(id).css('border-color','default');
+      $("#corectCompId").css('border-color','default');
+      $("#lowestCompId").css('border-color','default');
+      // $("#lowestParentCompId")
+      // $("#lowestChildCompId")
+      // $("#lowestDivCompId")
+      
+      if (selVal == "select")
+      {
+        $(id).css('border-color','red');
+        alert("Please select a Flag reason");
+      }
+      
+//      if (selVal == "[4] - Need Editing")
+//      {
+//        if (val == "lowestParentCompId")
+//        {
+//          $("#lowestParentCompId").hide();
+//          $("#lowestParentCompIdEdited").show();
+//          $("#lowestParentCompIdCancelId").show();
+//        }
+//        else if (val == "lowestChildCompId")
+//        {
+//          $("#lowestChildCompId").hide();
+//          $("#lowestChildCompIdEdited").show();
+//          $("#lowestChildCompIdCancelId").show();
+//        }
+//        else if (val == "lowestDivCompId")
+//        {
+//          $("#lowestDivCompId").hide();
+//          $("#lowestDivCompIdEdited").show();
+//          $("#lowestDivCompIdCancelId").show();
+//        }
+//      }
+      
+      if (selVal == "[4] - Relinked to Existing Company" || selVal == "[5] - Relinked to Existing Company; Renamed to Follow CHIEF Guideline")
+      {
+        if ($("#corectCompId").val() == $("#lowestCompId").val())
+        {
+         $(id).css('border-color','red');
+         $("#corectCompId").css('border-color','red');
+         $("#lowestCompId").css('border-color','red');
+        }
+      }
+      
+      if (selVal == "[1] - Rollup and Name Correct" || 
+          selVal == "[2] - Company Renamed" ||
+          selVal == "[3] - Company Created & CID Linked" ||
+          selVal == "[4] - Relinked to Existing Company" ||
+          selVal == "[5] - Relinked to Existing Company; Renamed to Follow CHIEF Guideline")
+      {
+        if ($("#lowestCompId").val() <= 0)
+        {
+         $(id).css('border-color','red');
+         $("#lowestCompId").css('border-color','red');
+        }
+      }
+      
+//      disableData(selVal);
+  }
+  
+  function onClickCancel(val)
+  {
+    if (val == "lowestParentCompIdCancelId")
+    {
+      $("#lowestParentCompId").show();
+      $("#lowestParentCompId").val("select");
+      $("#lowestParentCompIdEdited").hide();
+      $("#lowestParentCompIdCancelId").hide();
+    }
+    else if (val == "lowestChildCompIdCancelId")
+    {
+      $("#lowestChildCompId").show();
+      $("#lowestChildCompId").val("select");
+      $("#lowestChildCompIdEdited").hide();
+      $("#lowestChildCompIdCancelId").hide();
+    }
+    else if (val == "lowestDivCompIdCancelId")
+    {
+      $("#lowestDivCompId").show();
+      $("#lowestDivCompId").val("select");
+      $("#lowestDivCompIdEdited").hide();
+      $("#lowestDivCompIdCancelId").hide();
+    }
+  }
+  
+  function disableData(val)
+  { 
+    if((val == '[9] - Multiple Ads') || (val == '[0] - LCS Pod Assignment'))
+    {
+      
+       $('#ParentSelection').val('[3] - Not Applicable');
+       $('#parentCompId').val('N/A');
+       $('#lowestParentCompId').val('[3] - Not Applicable');
+       $('#childCompId').val('N/A');
+       $('#lowestChildCompId').val('[3] - Not Applicable');
+       $('#divCompId').val('N/A');
+       $('#lowestDivCompId').val('[3] - Not Applicable');
+       $('#lowestCompId').val('0')
+       $('#actionId').val('[5] - Not Applicable')
+       $('#select_merge_exists').val('No')
+       $('#select_merge_status').val('Not Applicable')
+       $('#sourceId').val('0')
+       $('#destId').val('0')
+       $('#mergeSelection').val('[5] - Not Applicable');
+      
+    }
+    else
+    {
+    
+      if(($('#ParentSelection').val() == '[3] - Not Applicable') && ($('#parentCompId').val() == 'N/A') && ($('#lowestParentCompId').val() == '[3] - Not Applicable') &&
+      ($('#childCompId').val() == 'N/A') && ($('#lowestChildCompId').val() == '[3] - Not Applicable') && ( $('#divCompId').val() == 'N/A') &&
+      ($('#lowestDivCompId').val() == '[3] - Not Applicable') && ($('#lowestCompId').val() == 0) && ( $('#actionId').val() == '[5] - Not Applicable')
+      && ($('#select_merge_exists').val() == 'No') && ($('#select_merge_status').val() == 'Not Applicable') && ($('#sourceId').val() == 0) && ($('#destId').val() == 0) && ($('#mergeSelection').val() == '[5] - Not Applicable')
+       )
+     {
+       $('#ParentSelection').val('select');
+       $('#parentCompId').val('');
+       $('#lowestParentCompId').val('select');
+       $('#childCompId').val('');
+       $('#lowestChildCompId').val('select');
+       $('#divCompId').val('');
+       $('#lowestDivCompId').val('select');
+       $('#lowestCompId').val('')
+       $('#actionId').val('select')
+       $('#select_merge_exists').val('select')
+       $('#select_merge_status').val('select')
+       $('#sourceId').val('')
+       $('#destId').val('')
+       $('#mergeSelection').val('select');
+    }
+    
+    }
+    
+  
+  }
+  
+  function validateWeb(value)
+  {
+     if(value == '')
+    {
+    $('#websiteIcsId').css('border-color', 'default');
+    }
+    else
+    {
+     if (validateURL(value)) {$('#websiteIcsId').css('border-color', 'default'); } 
+     else {
+          $('#websiteIcsId').css('border-color', 'red');
+              alert("Please enter a valid website URL Address");
+          }
+     } 
+  }
+  function validateURL(url) 
+  {
+      var regurl = /((?:https?\:\/\/|www\.)(?:[-a-z0-9]+\.)*[-a-z0-9]+.*)/i;
+      return regurl.test(url);
+  }
+
+function resetEditData()
+{
+
+        $('td:nth-child(6)').hide();
+
+          $("#websId").html("");
+         $("#rpId").html("");
+         $("#corectCId").html("");
+         $("#ParentSelectionId").html("");
+         $("#parCompId").html("");
+         $("#lowParCompId").html("");
+         $("#cCompId").html("");
+         $("#lowChildCId").html("");
+         $("#divCId").html("");
+         $("#lowDivCId").html("");
+         $("#lowCompId").html("");
+         $("#actId").html("");
+         $("#flagSelectionId").html("");
+         $("#clarSelId").html("<input type='hidden' id='clarstatus' value='none'/>");
+         $("#mergeSelId").html("");			 
+         $("#sId").html("");
+         $("#dId").html("");
+         $("#select_merge_statusId").html("");
+         $("#select_merge_existsId").html("");
+         $("#remId").html("");
+         
+        $('#websiteIcsId').attr('readonly', false);
+        $('#websiteIcsId').css("background-color", "");
+        $('#rollUpId').attr('readonly', false);
+        $('#rollUpId').css("background-color", "");
+        $('#ParentSelection').prop("disabled", false);
+        $('#ParentSelection').css("background-color", "");
+        $('#parentCompId').attr('readonly', false); 
+        $('#parentCompId').css("background-color", "");
+        $('#lowestParentCompId').prop("disabled", false);
+        $('#lowestParentCompId').css("background-color", "");
+        $('#childCompId').attr('readonly', false); 
+        $('#childCompId').css("background-color", "");
+        $('#lowestChildCompId').prop("disabled", false);
+        $('#lowestChildCompId').css("background-color", "");
+        $('#divCompId').attr('readonly', false);
+        $('#divCompId').css("background-color", "");
+        $('#lowestDivCompId').prop("disabled", false); 
+        $('#lowestDivCompId').css("background-color", "");
+        $('#lowestCompId').attr('readonly', false);
+        $('#lowestCompId').css("background-color", "");
+        $('#actionId').prop("disabled", false);
+        $('#actionId').css("background-color", "");
+        $('#flagSelection').prop("disabled", false);
+        $('#flagSelection').css("background-color", "");
+        $('#clarSelection').prop("disabled", false);
+        $('#clarSelection').css("background-color", "");
+        $('#mergeSelection').prop("disabled", false);
+        $('#mergeSelection').css("background-color", "");
+        $('#sourceId').attr('readonly', false);
+        $('#sourceId').css("background-color", "");
+        $('#destId').attr('readonly', false); 
+        $('#destId').css("background-color", "");
+        $('#select_merge_exists').prop("disabled", false);
+        $('#select_merge_exists').css("background-color", "");
+        $('#select_merge_status').prop("disabled", false); 
+        $('#select_merge_status').css("background-color", "");
+        $('#remarksId').removeAttr('readonly');
+        $('#remarksId').css("background-color", "");
+         
+        $('#websiteIcsIdComments').val("");
+        $('#rollUpIdComments').val("");
+        $('#correctCompIDComments').val("");
+        $('#mergeExistsComments').val("");
+        $('#parentNPLComments').val("");
+        $('#FlagComments').val("");
+        $('#parentCmpComments').val("");
+        $('#parentLowestComments').val("");
+        $('#childComments').val("");
+        $('#childLowestComments').val("")
+        $('#divisionComments').val("");
+        $('#divisionLowestComments ').val("");
+        $('#lowestComments').val("");
+        $('#actionComments').val("");
+        $('#sourceComments').val("");
+        $('#destinationComments').val("");
+        $('#mergeComments').val("");
+        $('#mergeStatusComments').val("");
+
+        
+}
+
+ function replaceTildeAscii(oriString)
+  {
+
+    var repString = null;
+    if(oriString != null)
+    {
+      repString = oriString.replace(/&#126/g,'~');
+    }
+    return repString;
+
+  }  
+  
+  function skipped()
+  {
+       document.getElementById("submitId").disabled = true;
+       document.getElementById("pauseId").disabled = true;
+   }
+  
+ function addLink()
+ {
+  $("#websiteIcsId").show();
+  $('#websiteIcsId').attr('readonly',false);
+ 
+ }
+function getFormat()
+{
+  var mysqlDateTime = getMySQLDate();
+  
+  var a = moment.tz(mysqlDateTime,"America/Los_Angeles");
+  var b = moment.tz(mysqlDateTime,"Asia/Kolkata");
+ 
+  alert(a.format());
+  alert(b.format());
+
+
+}
+
+function getMySQLDate()
+{
+   var date = new Date();
+	var yyyy = date.getFullYear();
+	var mm = date.getMonth() + 1;
+	var dd = date.getDate();
+	var hh = date.getHours();
+	var min = date.getMinutes();
+	var ss = date.getSeconds();
+	var mysqlDateTime = yyyy + '-' + mm + '-' + dd + ' ' + hh + ':' + min + ':' + ss;
+    
+    return mysqlDateTime;
+
+}
+
+function modifyAgentView()
+{
+           $('#tr_merge_status').show();
+           $('#tr_merge_exists').show();
+           
+           $('#tr_company_type').hide();
+           $('#tr_pod').hide();
+           $('#tr_proposed_company_name').hide();
+           $('#tr_opportunity_name').hide();
+           $('#tr_website').hide();
+           $('#tr_correct_company_name').show(); // used for Parent Company ID
+           $('#tr_mcc_id').show(); // used for Child Company ID
+           $('#tr_agency_name').show(); // used for Division Company ID
+           $('#tr_require_escalation').hide();
+           
+           $('#input_correct_company_id').val("Current Company Source ID:");
+           $('#input_parent_on_npl').val("Third Party Website?");
+           
+           $("#lowestParentCompId").html("");
+           $("#lowestParentCompId").append($("<option></option>").val("select").html("please select"));
+           $("#lowestParentCompId").append($("<option></option>").val("[1] - Yes").html("[1] - Yes"));
+           $("#lowestParentCompId").append($("<option></option>").val("[2] - No").html("[2] - No"));
+           $("#lowestParentCompId").append($("<option></option>").val("[3] - Not Applicable").html("[3] - Not Applicable"));
+           $("#lowestParentCompId").append($("<option></option>").val("[4] - Need Editing").html("[4] - Need Editing"));
+           
+           $("#lowestChildCompId").html("");
+           $("#lowestChildCompId").append($("<option></option>").val("select").html("please select"));
+           $("#lowestChildCompId").append($("<option></option>").val("[1] - Yes").html("[1] - Yes"));
+           $("#lowestChildCompId").append($("<option></option>").val("[2] - No").html("[2] - No"));
+           $("#lowestChildCompId").append($("<option></option>").val("[3] - Not Applicable").html("[3] - Not Applicable"));
+           $("#lowestChildCompId").append($("<option></option>").val("[4] - Need Editing").html("[4] - Need Editing"));
+           
+           $("#lowestDivCompId").html("");
+           $("#lowestDivCompId").append($("<option></option>").val("select").html("please select"));
+           $("#lowestDivCompId").append($("<option></option>").val("[1] - Yes").html("[1] - Yes"));
+           $("#lowestDivCompId").append($("<option></option>").val("[2] - No").html("[2] - No"));
+           $("#lowestDivCompId").append($("<option></option>").val("[3] - Not Applicable").html("[3] - Not Applicable"));
+           $("#lowestDivCompId").append($("<option></option>").val("[4] - Need Editing").html("[4] - Need Editing"));
+           
+           $("#mergeSelection").html("");
+           $("#mergeSelection").append($("<option></option>").val("select").html("please select"));
+           $("#mergeSelection").append($("<option></option>").val("[1] - Child Linked to Parent").html("[1] - Child Linked to Parent"));
+           $("#mergeSelection").append($("<option></option>").val("[2] - Division Linked to Child").html("[2] - Division Linked to Child"));
+           $("#mergeSelection").append($("<option></option>").val("[3] - Child LInked to Company and Division Linked to Child").html("[3] - Child LInked to Company and Division Linked to Child"));
+           $("#mergeSelection").append($("<option></option>").val("[4] - No Link").html("[4] - No Link"));
+           $("#mergeSelection").append($("<option></option>").val("[5] - Not Applicable").html("[5] - Not Applicable"));
+           
+           $("#lowestParentCompIdEdited").hide();
+           $("#lowestParentCompIdCancelId").hide();
+           
+           $("#lowestChildCompIdEdited").hide();
+           $("#lowestChildCompIdCancelId").hide();
+           
+           $("#lowestDivCompIdEdited").hide();
+           $("#lowestDivCompIdCancelId").hide();
+}
+
+function hideFieldsForGT(isTrue)
+{
+  if (isTrue)
+  {
+    $('#tr_input_parent_on_npl').hide();
+    $('#tr_parent_company_exist_in_grm').hide();
+    $('#tr_child_company_name').hide();
+    $('#tr_child_company_exist_in_grm').hide();
+    $('#tr_division_company_name').hide();
+    $('#tr_division_company_exist_in_grm').hide();
+    $('#tr_action_on_mapping').hide();
+    $('#tr_merge_exists').hide();
+    $('#tr_merge_status').hide();
+    $('#tr_merge_source_id').hide();
+    $('#tr_merge_destination_id').hide();
+    $('#tr_merge_flag').hide();
+  }
+  else
+  {
+    $('#tr_input_parent_on_npl').show();
+    $('#tr_parent_company_exist_in_grm').show();
+    $('#tr_child_company_name').show();
+    $('#tr_child_company_exist_in_grm').show();
+    $('#tr_division_company_name').show();
+    $('#tr_division_company_exist_in_grm').show();
+    $('#tr_action_on_mapping').show();
+    $('#tr_merge_exists').show();
+    $('#tr_merge_status').show();
+    $('#tr_merge_source_id').show();
+    $('#tr_merge_destination_id').show();
+    $('#tr_merge_flag').show();
+  }
+}
+
+function formValidateAndSubmit(iCount)
+{
+
+     if( iCount > 0)
+     {
+          alert("Please select the mandatory fields shown in red Colour");
+      }
+      else
+      {
+          var clarSelection= document.getElementById("clarSelection").value;
+          if(clarSelection == 'Yes')
+          {
+             var mystring =  document.getElementById("remarksId").value; 
+             if(!mystring.match(/\S/))
+             {
+                  alert ('Please enter remarks');
+                  return false;
+             } 
+          }
+          submitted();
+      }
+}
+
+function devAlert(msg)
+{
+  if (userName == 'msahadevan')
+  {
+    alert("(devAlert)" + msg);
+  }
+}
+
+ google.setOnLoadCallback(getRole); 
+</script>
