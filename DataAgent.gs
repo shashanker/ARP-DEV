@@ -290,21 +290,31 @@ function AgentDataJoin(pid, cid, userRole, userName)
 // for updating status of the tickets after click on submit
 function updatedTicketCount(userName, userRole, dateTime)
 {
-   var ticketCountQuery = "";
+  var ticketCountQuery = "";
+  var completedTicketQuery ="";
+  var clarificationTicketQuery="";
    if (userRole == USER_ROLE_QA)
    {
      ticketCountQuery = Utilities.formatString("select count(*) from sfdc where ldap_qa='%s' and DATE(qa_end_time) = DATE('%s');", userName, arpTime);
+     completedTicketQuery = Utilities.formatString("select count(*) from sfdc where ldap_qa='%s' and DATE(qa_end_time) = DATE('%s') and status in ('completed','wip_agent_rework');", userName, arpTime);
+     clarificationTicketQuery = Utilities.formatString("select count(*) from sfdc where ldap_qa='%s' and DATE(qa_end_time) = DATE('%s') and status = 'clarification_qa';", userName, arpTime);
    }
    else
    {
      ticketCountQuery = Utilities.formatString("select count(*) from sfdc where ldap_agent='%s' and DATE(agent_end_time) = DATE('%s');", userName, arpTime);
+     completedTicketQuery = Utilities.formatString("select count(*) from sfdc where ldap_agent='%s' and DATE(agent_end_time) = DATE('%s') and status in ('completed','qa','wip_qa_rework','wip_qa');", userName, arpTime);
+     clarificationTicketQuery = Utilities.formatString("select count(*) from sfdc where ldap_agent='%s' and DATE(agent_end_time) = DATE('%s') and status = 'clarification_agent';", userName, arpTime);
    }
 
 //   var ticketCountQuery = (userRole == USER_ROLE_QA) ? Utilities.formatString("select count(*) from sfdc where ldap_qa='%s' and DATE(qa_end_time) = DATE('%s');", userName, dateTime) : Utilities.formatString("select count(*) from sfdc where ldap_agent='%s' and DATE(agent_end_time) = DATE('%s');", userName, dateTime);
 
    var resultSet = getQueryResultSet(ticketCountQuery);
+   var completedCount = getQueryResultSet(completedTicketQuery);
+   var clarificationCount = getQueryResultSet(clarificationTicketQuery);
+   var result = resultSet.records[0] +"/80   (Completed : "+ completedCount.records[0]+ " , Clarification : "  +clarificationCount.records[0]+")";
 //   LogMessage(resultSet.records[0] + "::" + resultSet.records[1]);
-   return resultSet.records[0];
+   return result;
+  
 }
 // function for updating playtime of wip tickets
 function statusinHistory(cid, userName, userRole)

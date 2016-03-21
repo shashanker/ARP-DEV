@@ -91,7 +91,9 @@
    }
    function updateTickets(response)
    {
-    document.getElementById("tickets").innerHTML= "<b>Cases: </b>" + response + " / 80";
+      document.getElementById("tickets").innerHTML= "<b>Cases: </b>" + response;
+//    alert(response);
+//    document.getElementById("tickets").innerHTML= "<b>Cases: </b>" + response;
    }
    function programChanged(valueOfselct)
    {
@@ -177,6 +179,7 @@
          {
                 // to show Cases (ALL) count
                 document.getElementById("getnextId").disabled = true;
+                alert(mysqlDateTime);
                 google.script.run.withSuccessHandler(updateTickets).updatedTicketCount(userName,userRole,mysqlDateTime);
                 if(userRole == USER_ROLE_AGENT)
                 {
@@ -1899,6 +1902,8 @@
   
   function formValidation()
   {
+  
+  alert(programChangedGlobal);
       var i = 0;
       if( userRole == USER_ROLE_AGENT )
       {
