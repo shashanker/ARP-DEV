@@ -91,7 +91,9 @@
    }
    function updateTickets(response)
    {
-    document.getElementById("tickets").innerHTML= "<b>Cases: </b>" + response + " / 80";
+      document.getElementById("tickets").innerHTML= "<b>Cases: </b>" + response;
+//    alert(response);
+//    document.getElementById("tickets").innerHTML= "<b>Cases: </b>" + response;
    }
    function programChanged(valueOfselct)
    {
@@ -1899,6 +1901,8 @@
   
   function formValidation()
   {
+  
+  alert(programChangedGlobal);
       var i = 0;
       if( userRole == USER_ROLE_AGENT )
       {
